@@ -1,0 +1,59 @@
+name: Deploy SWEB
+
+# Прод-деплой только с main/master; ветка dev проходит CI без автодеплоя.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: deploy-sweb-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SWEB_HOST }}
+          username: ${{ secrets.SWEB_USER }}
+          key: ${{ secrets.SWEB_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/app
+            git pull --ff-only
+            docker compose -f deploy/sweb/docker-compose.yml build
+            docker compose -f deploy/sweb/docker-compose.yml up -d
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              if docker compose -f deploy/sweb/docker-compose.yml exec -T api \
+                python scripts/sync_internal_presets.py --db /data/internal/internal.db; then
+                ok=1
+                break
+              fi
+              sleep 5
+            done
+            if [ "$ok" != "1" ]; then
+              echo "sync_internal_presets failed after retries"
+              exit 1
+            fi
+            docker compose -f deploy/sweb/docker-compose.yml ps
+
+      - name: Remote smoke from GitHub runner
+        env:
+          SWEB_PUBLIC_BASE: ${{ secrets.SWEB_PUBLIC_BASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SWEB_PUBLIC_BASE:-}" ]; then
+            echo "Secret SWEB_PUBLIC_BASE not set — пропуск curl-smoke (задайте https://api.your-domain для проверки после деплоя)."
+            exit 0
+          fi
+          BASE="${SWEB_PUBLIC_BASE%/}"
+          curl -fsS "${BASE}/health" >/dev/null
+          curl -fsS "${BASE}/internal/health" >/dev/null
+          echo "Remote smoke OK: ${BASE}"

@@ -1,0 +1,6 @@
+# Fast CI / tests without rembg + ONNX: pip install -r requirements-dev.txt
+-r requirements-core.txt
+pytest>=8.0.0
+httpx>=0.27.0
+# Для scripts/real_batch_run.py с дефолтными образцами из skimage.data
+scikit-image>=0.22.0

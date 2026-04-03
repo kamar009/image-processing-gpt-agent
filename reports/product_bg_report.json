@@ -1,0 +1,159 @@
+[
+  {
+    "image": "pict1.jpg",
+    "background": "white",
+    "status": 200,
+    "file_id": "4632e7f9-b098-4255-b96f-bb1ef6009a91",
+    "size_kb": 19.83,
+    "validation_ok": true,
+    "warnings": [
+      "possible_highlight_clipping (near_white_fraction=0.68)"
+    ],
+    "detail": null
+  },
+  {
+    "image": "pict1.jpg",
+    "background": "transparent",
+    "status": 200,
+    "file_id": "9d274ff4-7612-49a9-950f-ca0eeb44dacc",
+    "size_kb": 34.37,
+    "validation_ok": true,
+    "warnings": [],
+    "detail": null
+  },
+  {
+    "image": "pict2.jpg",
+    "background": "white",
+    "status": 200,
+    "file_id": "5115b9f6-b467-4abe-a983-79d3b1ff9660",
+    "size_kb": 18.72,
+    "validation_ok": true,
+    "warnings": [
+      "possible_highlight_clipping (near_white_fraction=0.77)"
+    ],
+    "detail": null
+  },
+  {
+    "image": "pict2.jpg",
+    "background": "transparent",
+    "status": 200,
+    "file_id": "57ab5ba8-fe7d-4e05-a55a-e9bfdd060f64",
+    "size_kb": 42.32,
+    "validation_ok": true,
+    "warnings": [],
+    "detail": null
+  },
+  {
+    "image": "pict3.jpg",
+    "background": "white",
+    "status": 200,
+    "file_id": "9be35ffb-29e3-4b59-acc3-c73525858699",
+    "size_kb": 27.86,
+    "validation_ok": true,
+    "warnings": [
+      "possible_highlight_clipping (near_white_fraction=0.69)"
+    ],
+    "detail": null
+  },
+  {
+    "image": "pict3.jpg",
+    "background": "transparent",
+    "status": 200,
+    "file_id": "6a75bde2-1c83-4bca-aa84-7a52c852f65d",
+    "size_kb": 55.04,
+    "validation_ok": true,
+    "warnings": [],
+    "detail": null
+  },
+  {
+    "image": "pict4.jpg",
+    "background": "white",
+    "status": 200,
+    "file_id": "a90a9ccd-1ef6-4fea-a799-c5b7fc1f3fa2",
+    "size_kb": 11.94,
+    "validation_ok": true,
+    "warnings": [
+      "low_sharpness_heuristic (laplacian_var=21.5)",
+      "possible_highlight_clipping (near_white_fraction=0.87)"
+    ],
+    "detail": null
+  },
+  {
+    "image": "pict4.jpg",
+    "background": "transparent",
+    "status": 200,
+    "file_id": "8aea4958-3d78-40d9-a3d5-f4fcdc773e89",
+    "size_kb": 41.51,
+    "validation_ok": true,
+    "warnings": [],
+    "detail": null
+  },
+  {
+    "image": "pict5.jpg",
+    "background": "white",
+    "status": 200,
+    "file_id": "82d68292-efa3-4441-82e1-49981d8600ad",
+    "size_kb": 9.94,
+    "validation_ok": true,
+    "warnings": [
+      "low_sharpness_heuristic (laplacian_var=6.2)",
+      "possible_highlight_clipping (near_white_fraction=0.83)"
+    ],
+    "detail": null
+  },
+  {
+    "image": "pict5.jpg",
+    "background": "transparent",
+    "status": 200,
+    "file_id": "223e6123-d0e5-4b92-932f-55dd2f58ac3f",
+    "size_kb": 26.96,
+    "validation_ok": true,
+    "warnings": [],
+    "detail": null
+  },
+  {
+    "image": "pict6.jpg",
+    "background": "white",
+    "status": 200,
+    "file_id": "764bd493-98b8-4471-84c3-49db0c7e3dc7",
+    "size_kb": 24.93,
+    "validation_ok": true,
+    "warnings": [
+      "possible_highlight_clipping (near_white_fraction=0.83)"
+    ],
+    "detail": null
+  },
+  {
+    "image": "pict6.jpg",
+    "background": "transparent",
+    "status": 200,
+    "file_id": "c27025de-285d-466c-a71e-98803c275307",
+    "size_kb": 62.68,
+    "validation_ok": true,
+    "warnings": [],
+    "detail": null
+  },
+  {
+    "image": "pict7.jpg",
+    "background": "white",
+    "status": 200,
+    "file_id": "b4018988-e1b7-43e8-bbac-63b95be9fe7d",
+    "size_kb": 12.89,
+    "validation_ok": true,
+    "warnings": [
+      "low_sharpness_heuristic (laplacian_var=3.8)",
+      "possible_highlight_clipping (near_white_fraction=0.66)"
+    ],
+    "detail": null
+  },
+  {
+    "image": "pict7.jpg",
+    "background": "transparent",
+    "status": 200,
+    "file_id": "85eca207-02a3-45a7-820f-30bfd66656bc",
+    "size_kb": 41.37,
+    "validation_ok": true,
+    "warnings": [],
+    "detail": null
+  }
+]

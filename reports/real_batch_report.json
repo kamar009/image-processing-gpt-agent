@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "source": "E:\\Cursor\\Image Processing Gpt Agent\\real_images",
+    "base_url": "http://127.0.0.1:8000",
+    "count": 7
+  },
+  "rows": [
+    {
+      "image": "pict1.jpg",
+      "type": "product",
+      "status": 200,
+      "file_id": "030b7357-7106-4d70-ab60-ff324198b9ed",
+      "width": 800,
+      "height": 800,
+      "size_kb": 49.98,
+      "validation_ok": true,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "image": "pict2.jpg",
+      "type": "category",
+      "status": 200,
+      "file_id": "d18a6cce-fc54-4011-9ef1-5b173828e376",
+      "width": 1200,
+      "height": 800,
+      "size_kb": 65.77,
+      "validation_ok": true,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "image": "pict3.jpg",
+      "type": "banner",
+      "status": 200,
+      "file_id": "4ae7800f-e54d-4152-93e8-c1375af80864",
+      "width": 1920,
+      "height": 900,
+      "size_kb": 92.11,
+      "validation_ok": true,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "image": "pict4.jpg",
+      "type": "portfolio_interior",
+      "status": 200,
+      "file_id": "3dc222b7-466c-4dd6-a45a-5501291c7630",
+      "width": 1600,
+      "height": 900,
+      "size_kb": 97.75,
+      "validation_ok": true,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "image": "pict5.jpg",
+      "type": "product",
+      "status": 200,
+      "file_id": "5fb9b0a5-6acf-47f8-9cef-92f25f1d5209",
+      "width": 800,
+      "height": 800,
+      "size_kb": 52.36,
+      "validation_ok": true,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "image": "pict6.jpg",
+      "type": "category",
+      "status": 200,
+      "file_id": "b5ff1de0-e983-4510-ae89-aeebd2e69373",
+      "width": 1200,
+      "height": 800,
+      "size_kb": 57.12,
+      "validation_ok": true,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "image": "pict7.jpg",
+      "type": "banner",
+      "status": 200,
+      "file_id": "985b1f17-ad6b-42d4-b779-7acb8b990784",
+      "width": 1920,
+      "height": 900,
+      "size_kb": 61.58,
+      "validation_ok": true,
+      "warnings": [],
+      "errors": []
+    }
+  ]
+}

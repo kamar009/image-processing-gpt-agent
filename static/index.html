@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Обработка изображений</title>
+  <style>
+    :root {
+      --bg: #f4f4f5;
+      --card: #fff;
+      --border: #e4e4e7;
+      --text: #18181b;
+      --muted: #71717a;
+      --accent: #2563eb;
+      --err: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 1rem 1.25rem 2rem;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      max-width: 56rem;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
+    p.sub { margin: 0 0 1rem; color: var(--muted); font-size: 0.9rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-size: 0.8rem; font-weight: 500; margin-bottom: 0.25rem; color: var(--muted); }
+    select, input[type="file"] {
+      width: 100%;
+      margin-bottom: 0.75rem;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+    button[type="submit"] {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button[type="submit"]:disabled { opacity: 0.55; cursor: not-allowed; }
+    details { margin-top: 0.5rem; }
+    summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+    .preview-wrap { margin-top: 0.75rem; }
+    .preview-wrap h2 { font-size: 0.85rem; margin: 0 0 0.35rem; color: var(--muted); }
+    .preview-wrap img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: repeating-conic-gradient(#e4e4e7 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+    }
+    .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; word-break: break-all; }
+    .error { color: var(--err); font-size: 0.875rem; margin-top: 0.75rem; white-space: pre-wrap; }
+    .ok-warn { font-size: 0.85rem; margin-top: 0.5rem; color: #a16207; }
+    a.btn {
+      display: inline-block;
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a.btn:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>Подготовка изображения для сайта</h1>
+  <p class="sub">Загрузите файл и выберите пресет. Ответ API — тот же, что у <code>POST /process-image</code>.</p>
+
+  <form id="form" class="card">
+    <label for="image">Файл изображения</label>
+    <input id="image" name="image" type="file" accept="image/*" required>
+
+    <div class="row">
+      <div>
+        <label for="type">Тип (type)</label>
+        <select id="type" name="type" required>
+          <option value="product">product</option>
+          <option value="category">category</option>
+          <option value="banner">banner</option>
+          <option value="portfolio_interior">portfolio_interior</option>
+        </select>
+      </div>
+      <div>
+        <label for="background">Фон (background)</label>
+        <select id="background" name="background">
+          <option value="">по умолчанию пресета</option>
+          <option value="keep">keep</option>
+          <option value="white">white</option>
+          <option value="transparent">transparent</option>
+          <option value="clean">clean</option>
+        </select>
+      </div>
+    </div>
+
+    <label for="format">Формат (format)</label>
+    <select id="format" name="format">
+      <option value="">по умолчанию пресета</option>
+      <option value="webp">webp</option>
+      <option value="jpeg">jpeg</option>
+      <option value="png">png</option>
+    </select>
+
+    <details>
+      <summary>Дополнительно (style, crop, quality)</summary>
+      <label for="style">style</label>
+      <select id="style" name="style">
+        <option value="">по умолчанию (neutral)</option>
+        <option value="neutral">neutral</option>
+        <option value="premium">premium</option>
+        <option value="light">light</option>
+      </select>
+      <label for="crop_mode">crop_mode</label>
+      <select id="crop_mode" name="crop_mode">
+        <option value="">по умолчанию пресета</option>
+        <option value="center">center</option>
+        <option value="smart">smart</option>
+      </select>
+      <label for="quality_level">quality_level</label>
+      <select id="quality_level" name="quality_level">
+        <option value="">по умолчанию пресета</option>
+        <option value="standard">standard</option>
+        <option value="high">high</option>
+      </select>
+    </details>
+
+    <button type="submit" id="submit">Обработать</button>
+    <div id="err" class="error" hidden></div>
+  </form>
+
+  <div class="card" id="inPreviewCard" hidden>
+    <h2 class="preview-wrap" style="margin:0;font-size:0.9rem;color:var(--muted)">Вход</h2>
+    <div class="preview-wrap">
+      <img id="inPreview" alt="Входное изображение">
+    </div>
+  </div>
+
+  <div class="card" id="outCard" hidden>
+    <h2 class="preview-wrap" style="margin:0;font-size:0.9rem;color:var(--muted)">Результат</h2>
+    <div class="preview-wrap">
+      <img id="outPreview" alt="Результат">
+    </div>
+    <div id="validationMsg" class="ok-warn" hidden></div>
+    <div id="meta" class="meta"></div>
+    <a id="download" class="btn" href="#" download hidden>Скачать</a>
+  </div>
+
+  <script>
+(function () {
+  const form = document.getElementById("form");
+  const imageInput = document.getElementById("image");
+  const errEl = document.getElementById("err");
+  const submitBtn = document.getElementById("submit");
+  const inCard = document.getElementById("inPreviewCard");
+  const inPreview = document.getElementById("inPreview");
+  const outCard = document.getElementById("outCard");
+  const outPreview = document.getElementById("outPreview");
+  const metaEl = document.getElementById("meta");
+  const downloadEl = document.getElementById("download");
+  const validationMsg = document.getElementById("validationMsg");
+  let inObjectUrl = null;
+
+  function setErr(msg) {
+    errEl.textContent = msg || "";
+    errEl.hidden = !msg;
+  }
+
+  imageInput.addEventListener("change", function () {
+    if (inObjectUrl) URL.revokeObjectURL(inObjectUrl);
+    inObjectUrl = null;
+    inCard.hidden = true;
+    const f = imageInput.files && imageInput.files[0];
+    if (!f) return;
+    inObjectUrl = URL.createObjectURL(f);
+    inPreview.src = inObjectUrl;
+    inCard.hidden = false;
+  });
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    setErr("");
+    validationMsg.hidden = true;
+    outCard.hidden = true;
+    const file = imageInput.files && imageInput.files[0];
+    if (!file) {
+      setErr("Выберите файл.");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("image", file);
+    fd.append("type", document.getElementById("type").value);
+    const bg = document.getElementById("background").value;
+    if (bg) fd.append("background", bg);
+    const fmt = document.getElementById("format").value;
+    if (fmt) fd.append("format", fmt);
+    const sty = document.getElementById("style").value;
+    if (sty) fd.append("style", sty);
+    const crop = document.getElementById("crop_mode").value;
+    if (crop) fd.append("crop_mode", crop);
+    const qual = document.getElementById("quality_level").value;
+    if (qual) fd.append("quality_level", qual);
+
+    submitBtn.disabled = true;
+    try {
+      const res = await fetch("/process-image", { method: "POST", body: fd });
+      const requestId = res.headers.get("x-request-id") || "";
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {
+        setErr("HTTP " + res.status + (requestId ? "\nrequest_id: " + requestId : ""));
+        return;
+      }
+      const detail = data && data.detail;
+      if (detail && res.status >= 400 && !data.file_id) {
+        setErr(String(detail) + (data.request_id ? "\nrequest_id: " + data.request_id : requestId ? "\nrequest_id: " + requestId : ""));
+        return;
+      }
+      if (!data.file_id) {
+        setErr("Неожиданный ответ сервера." + (requestId ? "\nrequest_id: " + requestId : ""));
+        return;
+      }
+      const rel = "/outputs/" + data.file_id;
+      const url = data.download_url && data.download_url.startsWith("http") ? data.download_url : rel;
+      outPreview.src = rel + "?t=" + Date.now();
+      const ext = (data.format || "webp").toLowerCase();
+      const fname = data.file_id + "." + (ext === "jpeg" ? "jpg" : ext);
+      downloadEl.href = rel;
+      downloadEl.setAttribute("download", fname);
+      downloadEl.hidden = false;
+      metaEl.textContent =
+        "HTTP " + res.status +
+        " | " + (data.width || "?") + "×" + (data.height || "?") +
+        " | " + (data.size_kb != null ? data.size_kb + " KB" : "") +
+        " | vision " + (data.vision_ms != null ? data.vision_ms + " ms" : "—") +
+        " | всего " + (data.processing_time_ms != null ? data.processing_time_ms + " ms" : "—") +
+        (requestId || data.request_id ? " | request_id " + (data.request_id || requestId) : "");
+      if (data.validation_ok === false) {
+        validationMsg.textContent = "validation_ok=false: " + JSON.stringify(data.validation_errors || []);
+        validationMsg.hidden = false;
+      }
+      outCard.hidden = false;
+    } catch (ex) {
+      setErr(String(ex && ex.message ? ex.message : ex));
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+})();
+  </script>
+</body>
+</html>
