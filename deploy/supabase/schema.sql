@@ -51,5 +51,9 @@ values
   ('promo_flyer', 'Реклама и флаеры', 'banner', 'neutral'),
   ('staff_portrait', 'Проф. фото сотрудников', 'product', 'neutral'),
   ('work_portfolio', 'Проф. фото работ', 'portfolio_interior', 'neutral'),
-  ('hair_style_ai', 'ИИ подбор прически', 'category', 'creative')
+  ('hair_style_ai', 'ИИ подбор прически', 'category', 'creative'),
+  ('catalog_showcase', 'Витрина каталога', 'category', 'neutral'),
+  ('hero_slide', 'Слайд главной (герой)', 'banner', 'neutral'),
+  ('interior_wide', 'Интерьер широкий кадр', 'portfolio_interior', 'neutral'),
+  ('product_white_bg', 'Товар на белом фоне', 'product', 'premium')
 on conflict (key) do nothing;

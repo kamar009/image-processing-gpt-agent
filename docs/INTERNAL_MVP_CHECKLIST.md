@@ -17,7 +17,8 @@
 
 ## Runtime and reliability
 
-- `GET /health` and `GET /internal/health` return 200; для internal ответ включает `db_ok`, `outputs_writable`, при сбое БД или тома — `status=degraded`.
+- `GET /health` and `GET /internal/health` return 200; для internal ответ включает `db_ok`, `outputs_writable`, `disk_status` / `disk_volume_used_pct`; при сбое БД, тома или критическом заполнении диска — `status=degraded`.
+- `GET /metrics` содержит те же поля `disk_volume_*` для внешнего мониторинга.
 - `docker compose -f deploy/sweb/docker-compose.yml ps` shows healthy `api` and `worker`.
 - Backup script runs: `python scripts/backup_internal_db.py`.
 - Old outputs are periodically cleaned with `scripts/cleanup_outputs.py`.

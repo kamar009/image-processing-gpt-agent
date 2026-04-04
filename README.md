@@ -105,6 +105,7 @@ Supabase SQL схема и RLS политики: `deploy/supabase/schema.sql`, `
 - `OUTPUT_DIR`, `PUBLIC_BASE_URL`
 - `MAX_UPLOAD_MB`, `MAX_PROCESS_SECONDS`
 - `REMBG_WARMUP`, `VALIDATION_WARNINGS_AS_ERRORS`
+- `DISK_USAGE_WARN_PCT`, `DISK_USAGE_CRITICAL_PCT` — том с `OUTPUT_DIR` в `GET /metrics` и `/internal/health`
 
 В ответе `POST /process-image` доступны метрики этапов: `vision_ms`, `pipeline_wall_ms`, `pipeline_body_ms`, `encode_ms`.
 

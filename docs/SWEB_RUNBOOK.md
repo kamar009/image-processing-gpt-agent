@@ -98,3 +98,8 @@ docker compose -f deploy/sweb/docker-compose.yml logs -f worker
 ```bash
 cp /var/lib/docker/volumes/imageprocessinggptagent_internal_data/_data/internal.db "/opt/app/data/internal-$(date +%F).db"
 ```
+
+## 7) Обслуживание диска и retention
+
+- Метрики тома в ответах **`GET /metrics`** и **`GET /internal/health`** (`disk_volume_used_pct`, `disk_volume_free_gb`). Пороги: переменные **`DISK_USAGE_WARN_PCT`** / **`DISK_USAGE_CRITICAL_PCT`** в `.env` (по умолчанию 85 / 95); при критическом заполнении internal health — **`status=degraded`**.
+- Пример **cron** (cleanup + проверка диска через `docker compose exec`): [deploy/sweb/cron-maintenance.example](../deploy/sweb/cron-maintenance.example).

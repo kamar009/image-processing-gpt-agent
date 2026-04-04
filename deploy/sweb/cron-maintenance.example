@@ -1,0 +1,12 @@
+# Примеры cron для пользователя deploy на VPS (crontab -e).
+# Пути: репозиторий в /opt/app, compose-файл deploy/sweb/docker-compose.yml.
+# Сначала прогоните команды вручную; для cleanup обязательно один раз с --dry-run.
+
+# Ежедневно: очистка старых файлов в OUTPUT_DIR (внутри контейнера api)
+15 3 * * * cd /opt/app && docker compose -f deploy/sweb/docker-compose.yml exec -T api python scripts/cleanup_outputs.py --dir /data/outputs --max-age-hours 72 >>/var/log/image-mvp-cleanup.log 2>&1
+
+# Ежедневно: проверка диска (код выхода 1 = warn, 2 = critical — настройте алерт по почте/мониторингу)
+30 4 * * * cd /opt/app && docker compose -f deploy/sweb/docker-compose.yml exec -T api python scripts/check_disk_space.py --path /data/outputs --warn-usage-pct 85 --critical-usage-pct 95 >>/var/log/image-mvp-disk.log 2>&1
+
+# Еженедельно: копия internal.db с хоста (путь к volume подставьте под свой Docker, см. SWEB runbook)
+# 0 5 * * 0 cp /var/lib/docker/volumes/<project>_internal_data/_data/internal.db /opt/app/data/backups/internal-$(date +\%F).db

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import time
 import uuid
 import json
@@ -131,6 +132,36 @@ def _max_upload_bytes() -> int:
     mb = max(1.0, min(mb, 100.0))
     return int(mb * 1024 * 1024)
 
+
+def _disk_usage_for_path(root: Path) -> dict[str, float]:
+    """Usage of the filesystem that contains OUTPUT_DIR (same volume as uploads)."""
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        u = shutil.disk_usage(root)
+        if u.total <= 0:
+            return {"disk_volume_used_pct": -1.0, "disk_volume_free_gb": 0.0, "disk_volume_total_gb": 0.0}
+        used_pct = round((u.used / u.total) * 100.0, 2)
+        return {
+            "disk_volume_used_pct": used_pct,
+            "disk_volume_free_gb": round(u.free / (1024**3), 3),
+            "disk_volume_total_gb": round(u.total / (1024**3), 3),
+        }
+    except OSError:
+        return {"disk_volume_used_pct": -1.0, "disk_volume_free_gb": 0.0, "disk_volume_total_gb": 0.0}
+
+
+def _disk_thresholds() -> tuple[float, float]:
+    try:
+        warn = float(os.environ.get("DISK_USAGE_WARN_PCT", "85"))
+    except ValueError:
+        warn = 85.0
+    try:
+        crit = float(os.environ.get("DISK_USAGE_CRITICAL_PCT", "95"))
+    except ValueError:
+        crit = 95.0
+    return max(0.0, min(warn, 100.0)), max(0.0, min(crit, 100.0))
+
+
 _E = TypeVar("_E", bound=Enum)
 
 
@@ -152,7 +183,7 @@ def health() -> dict[str, str]:
 
 
 @app.get("/internal/health")
-def internal_health() -> dict[str, str | bool]:
+def internal_health() -> dict[str, str | bool | float]:
     if not internal_cfg.enabled:
         return {"status": "ok", "internal_mode": False}
     db_ok = internal_repo.ping()
@@ -161,12 +192,29 @@ def internal_health() -> dict[str, str | bool]:
         outputs_writable = root.is_dir() and os.access(root, os.W_OK)
     except OSError:
         outputs_writable = False
-    status = "ok" if db_ok and outputs_writable else "degraded"
+    disk = _disk_usage_for_path(storage.root())
+    warn_p, crit_p = _disk_thresholds()
+    pct = disk["disk_volume_used_pct"]
+    if pct < 0:
+        disk_status = "unknown"
+        disk_critical = False
+    elif pct >= crit_p:
+        disk_status = "critical"
+        disk_critical = True
+    elif pct >= warn_p:
+        disk_status = "warn"
+        disk_critical = False
+    else:
+        disk_status = "ok"
+        disk_critical = False
+    status = "ok" if db_ok and outputs_writable and not disk_critical else "degraded"
     return {
         "status": status,
         "internal_mode": True,
         "db_ok": db_ok,
         "outputs_writable": outputs_writable,
+        "disk_status": disk_status,
+        **disk,
     }
 
 
@@ -178,7 +226,8 @@ def metrics() -> dict[str, float | int]:
             if _metrics["process_image_count"]
             else 0.0
         )
-        return {**_metrics, "process_image_avg_ms": round(avg_ms, 2)}
+        disk = _disk_usage_for_path(storage.root())
+        return {**_metrics, "process_image_avg_ms": round(avg_ms, 2), **disk}
 
 
 @app.middleware("http")
