@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Сценарии обработки</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; padding: 12px; max-width: 520px; margin-inline: auto; }
+    h1 { font-size: 1.1rem; margin: 0 0 12px; }
+    .err { color: #c00; white-space: pre-wrap; font-size: 0.9rem; margin: 8px 0; }
+    .ok { color: #080; font-size: 0.9rem; }
+    ul.presets { list-style: none; padding: 0; margin: 0 0 12px; }
+    ul.presets li { margin: 6px 0; }
+    button.preset {
+      width: 100%; text-align: left; padding: 10px 12px;
+      border-radius: 10px; border: 1px solid #8886; cursor: pointer;
+      background: #fff3; font-size: 1rem;
+    }
+    button.preset.active { border-color: #08f; background: #08f2; }
+    input[type=file] { margin: 8px 0; width: 100%; }
+    button.run { width: 100%; padding: 12px; font-size: 1rem; margin-top: 8px; border-radius: 10px; border: none; background: #08f; color: #fff; cursor: pointer; }
+    button.run:disabled { opacity: 0.5; cursor: not-allowed; }
+    a.dl { display: inline-block; margin-top: 12px; word-break: break-all; }
+    #meta { font-size: 0.8rem; opacity: 0.75; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Сценарии</h1>
+  <p id="meta">Если Mini App на другом домене, чем API, задайте в начале скрипта <code>window.__API_BASE__</code> (базовый URL API без / в конце).</p>
+  <div id="err" class="err" hidden></div>
+  <div id="greet"></div>
+  <ul id="presets" class="presets"></ul>
+  <input type="file" id="fileEl" accept="image/jpeg,image/png,image/webp" />
+  <button type="button" class="run" id="runBtn" disabled>Обработать</button>
+  <div id="status" class="ok"></div>
+  <a id="dl" class="dl" hidden target="_blank" rel="noopener"></a>
+
+  <script>
+    window.__API_BASE__ = window.__API_BASE__ || '';
+    let accessToken = null;
+    let legacyUserId = null;
+    let selectedKey = null;
+    const tg = window.Telegram && window.Telegram.WebApp;
+
+    function apiUrl(path) {
+      return window.__API_BASE__ + path;
+    }
+
+    function showErr(msg) {
+      const el = document.getElementById('err');
+      el.textContent = msg || '';
+      el.hidden = !msg;
+    }
+
+    function setStatus(t) {
+      document.getElementById('status').textContent = t || '';
+    }
+
+    async function api(path, opts) {
+      const headers = Object.assign({}, (opts && opts.headers) || {});
+      if (!(opts && opts.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+      }
+      if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+      const r = await fetch(apiUrl(path), Object.assign({}, opts, { headers }));
+      return r;
+    }
+
+    function fileToBase64(file) {
+      return new Promise(function (resolve, reject) {
+        const fr = new FileReader();
+        fr.onload = function () {
+          const s = fr.result;
+          const i = String(s).indexOf(',');
+          resolve(i >= 0 ? s.slice(i + 1) : s);
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+
+    async function auth() {
+      showErr('');
+      if (tg) {
+        tg.ready();
+        tg.expand();
+      }
+      const initData = tg && tg.initData;
+      if (!initData) {
+        showErr('Откройте приложение из Telegram (нет initData). Для отладки в браузере выключите режим Telegram или используйте curl.');
+        return false;
+      }
+      const r = await api('/internal/auth/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ init_data: initData }),
+      });
+      const data = await r.json().catch(function () { return {}; });
+      if (!r.ok) {
+        showErr((data && data.detail) || ('Ошибка входа ' + r.status));
+        return false;
+      }
+      if (data.access_token) accessToken = data.access_token;
+      var u = data.user || {};
+      document.getElementById('greet').textContent =
+        (u.full_name || u.username || 'Сотрудник') + (data.access_token ? ' (JWT)' : '');
+      return true;
+    }
+
+    async function loadPresets() {
+      const r = await api('/internal/presets');
+      const data = await r.json().catch(function () { return {}; });
+      if (!r.ok) {
+        showErr((data && data.detail) || ('Пресеты: ' + r.status));
+        return;
+      }
+      const ul = document.getElementById('presets');
+      ul.innerHTML = '';
+      (data.items || []).forEach(function (p) {
+        const li = document.createElement('li');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'preset';
+        b.textContent = p.title;
+        b.dataset.key = p.key;
+        b.onclick = function () {
+          selectedKey = p.key;
+          Array.prototype.forEach.call(ul.querySelectorAll('button'), function (x) {
+            x.classList.toggle('active', x.dataset.key === selectedKey);
+          });
+          document.getElementById('runBtn').disabled = !selectedKey || !document.getElementById('fileEl').files.length;
+        };
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+    }
+
+    async function pollJob(jobId) {
+      var path = '/internal/jobs/' + encodeURIComponent(jobId);
+      if (!accessToken) {
+        var uid = (legacyUserId || window.__DEBUG_USER_ID__ || '').trim();
+        if (uid) path += '?user_id=' + encodeURIComponent(uid);
+      }
+      const r = await api(path);
+  const d = await r.json().catch(function () { return {}; });
+      if (!r.ok) {
+        showErr((d && d.detail) || r.status);
+        return null;
+      }
+      return d;
+    }
+
+    document.getElementById('fileEl').onchange = function () {
+      document.getElementById('runBtn').disabled = !selectedKey || !this.files.length;
+    };
+
+    document.getElementById('runBtn').onclick = async function () {
+      showErr('');
+      setStatus('');
+      document.getElementById('dl').hidden = true;
+      var f = document.getElementById('fileEl').files[0];
+      if (!selectedKey || !f) return;
+      var b64 = await fileToBase64(f);
+      var body = { preset_key: selectedKey, image_base64: b64 };
+      if (!accessToken) {
+        var uid = (legacyUserId || window.__DEBUG_USER_ID__ || '').trim();
+        if (!uid) {
+          showErr('Нет JWT: задайте INTERNAL_JWT_SECRET на сервере.');
+          return;
+        }
+        body.user_id = uid;
+      }
+      var r = await api('/internal/jobs', { method: 'POST', body: JSON.stringify(body) });
+      var data = await r.json().catch(function () { return {}; });
+      if (!r.ok) {
+        showErr((data && data.detail) || String(r.status));
+        return;
+      }
+      var jobId = data.id;
+      setStatus('В очереди…');
+      for (var i = 0; i < 120; i++) {
+        await new Promise(function (x) { setTimeout(x, 1500); });
+        var j = await pollJob(jobId);
+        if (!j) return;
+        if (j.status === 'failed') {
+          showErr(j.error_message || 'Ошибка обработки');
+          return;
+        }
+        if (j.status === 'done' && j.download_url) {
+          setStatus('Готово');
+          var a = document.getElementById('dl');
+          a.href = j.download_url.indexOf('http') === 0 ? j.download_url : (window.__API_BASE__ || '') + j.download_url;
+          a.textContent = 'Скачать результат';
+          a.hidden = false;
+          return;
+        }
+        setStatus('Статус: ' + (j.status || '…'));
+      }
+      showErr('Таймаут ожидания');
+    };
+
+    (async function start() {
+      if (!(await auth())) return;
+      await loadPresets();
+    })();
+  </script>
+</body>
+</html>

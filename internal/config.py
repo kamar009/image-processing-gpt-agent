@@ -12,6 +12,9 @@ class InternalConfig:
     telegram_bot_token: str
     worker_poll_seconds: float
     max_concurrent_jobs_per_user: int
+    jwt_secret: str
+    jwt_exp_hours: int
+    cors_origins: tuple[str, ...]
 
 
 def load_internal_config() -> InternalConfig:
@@ -26,6 +29,14 @@ def load_internal_config() -> InternalConfig:
     except ValueError:
         max_jobs = 3
     max_jobs = max(1, min(max_jobs, 20))
+    cors_raw = os.environ.get("INTERNAL_CORS_ORIGINS", "")
+    cors_origins = tuple(x.strip() for x in cors_raw.split(",") if x.strip())
+    jwt_secret = os.environ.get("INTERNAL_JWT_SECRET", "").strip()
+    try:
+        jwt_exp = int(os.environ.get("INTERNAL_JWT_EXPIRE_HOURS", "168"))
+    except ValueError:
+        jwt_exp = 168
+    jwt_exp = max(1, min(jwt_exp, 24 * 30))
     return InternalConfig(
         enabled=os.environ.get("INTERNAL_MODE", "0").lower() in ("1", "true", "yes"),
         db_path=os.environ.get("INTERNAL_DB_PATH", "./outputs/internal.db"),
@@ -33,4 +44,7 @@ def load_internal_config() -> InternalConfig:
         telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
         worker_poll_seconds=float(os.environ.get("WORKER_POLL_SECONDS", "3")),
         max_concurrent_jobs_per_user=max_jobs,
+        jwt_secret=jwt_secret,
+        jwt_exp_hours=jwt_exp,
+        cors_origins=cors_origins,
     )

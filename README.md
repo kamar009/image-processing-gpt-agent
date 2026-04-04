@@ -63,6 +63,10 @@ docker compose up --build
 - `INTERNAL_MODE=1`
 - `TELEGRAM_BOT_TOKEN=<bot_token>`
 - `INTERNAL_ADMIN_IDS=11111111,22222222`
+- Рекомендуется **`INTERNAL_JWT_SECRET`** (строка ≥32 символов): после входа выдаётся `access_token`, запросы **`POST/GET /internal/jobs*`** идут с заголовком `Authorization: Bearer …` (без подделки `user_id`).
+- **`INTERNAL_CORS_ORIGINS`** — список через запятую для браузерного Mini App на другом origin (например `https://app.example.com`).
+
+Telegram Mini App (статика): после деплоя откройте **`/miniapp/`** (тот же хост, что и API) и укажите этот URL в BotFather как Web App. Если фронт на другом домене — задайте в `index.html`/`window.__API_BASE__` базовый URL API и добавьте origin в `INTERNAL_CORS_ORIGINS`.
 
 Новые endpoint-ы:
 

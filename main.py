@@ -19,12 +19,14 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.cors import CORSMiddleware
 from PIL import Image
 
 from gpt_agent.analyze import analyze_image_for_pipeline
 from internal.auth import verify_telegram_init_data
 from internal.config import load_internal_config
 from internal.repository import InternalRepository
+from internal.tokens import create_access_token, decode_access_token
 from image_processor.pipeline import run_pipeline
 from output_storage.local import OutputStorage
 from presets.definitions import (
@@ -100,6 +102,49 @@ internal_repo = InternalRepository(internal_cfg.db_path)
 
 for admin_id in internal_cfg.admin_ids:
     internal_repo.allow_user(admin_id, "env admin")
+
+
+def _bearer_sub(request: Request) -> str:
+    auth = request.headers.get("authorization")
+    if not auth or not auth.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="authorization bearer token required")
+    raw = auth[7:].strip()
+    if not internal_cfg.jwt_secret:
+        raise HTTPException(status_code=500, detail="internal jwt secret not configured")
+    try:
+        payload = decode_access_token(internal_cfg.jwt_secret, raw)
+    except Exception:
+        raise HTTPException(status_code=401, detail="invalid or expired token") from None
+    return str(payload["sub"])
+
+
+def _resolve_job_owner_user_id(
+    request: Request,
+    *,
+    query_user_id: str | None,
+    body_user_id: str | None,
+) -> str:
+    if internal_cfg.jwt_secret:
+        return _bearer_sub(request)
+    uid = (query_user_id or body_user_id or "").strip()
+    if not uid:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    return uid
+
+
+if internal_cfg.enabled and internal_cfg.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(internal_cfg.cors_origins),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=["x-request-id"],
+    )
+
+_MINIAPP_DIR = Path(__file__).resolve().parent / "static" / "miniapp"
+if _MINIAPP_DIR.is_dir():
+    app.mount("/miniapp", StaticFiles(directory=str(_MINIAPP_DIR), html=True), name="miniapp")
 
 _metrics_lock = Lock()
 _metrics = {
@@ -331,7 +376,7 @@ async def internal_auth_telegram(payload: dict):
         full_name=full_name,
         role=role,
     )
-    return {
+    out: dict = {
         "ok": True,
         "user": {
             "id": user.id,
@@ -341,6 +386,17 @@ async def internal_auth_telegram(payload: dict):
             "role": user.role,
         },
     }
+    if internal_cfg.jwt_secret:
+        out["access_token"] = create_access_token(
+            secret=internal_cfg.jwt_secret,
+            user_id=user.id,
+            telegram_id=user.telegram_id,
+            role=user.role,
+            exp_hours=internal_cfg.jwt_exp_hours,
+        )
+        out["token_type"] = "bearer"
+        out["expires_in_hours"] = internal_cfg.jwt_exp_hours
+    return out
 
 
 @app.post("/internal/admin/allow-user")
@@ -367,11 +423,17 @@ async def create_internal_job(request: Request, payload: dict):
     if not internal_cfg.enabled:
         raise HTTPException(status_code=404, detail="internal mode disabled")
     request_id = getattr(request.state, "request_id", None)
-    user_id = str(payload.get("user_id", "")).strip()
     preset_key = str(payload.get("preset_key", "")).strip()
     image_b64 = str(payload.get("image_base64", "")).strip()
-    if not user_id or not preset_key or not image_b64:
-        raise HTTPException(status_code=400, detail="user_id, preset_key, image_base64 are required")
+    user_id = _resolve_job_owner_user_id(
+        request,
+        query_user_id=None,
+        body_user_id=str(payload.get("user_id", "")).strip() or None,
+    )
+    if internal_cfg.jwt_secret and (payload.get("user_id")):
+        logger.warning("internal_job ignored body user_id when JWT mode is enabled")
+    if not preset_key or not image_b64:
+        raise HTTPException(status_code=400, detail="preset_key, image_base64 are required")
     if not internal_repo.get_preset_row(preset_key):
         raise HTTPException(status_code=400, detail="unknown or disabled preset_key")
     active = internal_repo.count_active_jobs_for_user(user_id)
@@ -418,12 +480,10 @@ async def create_internal_job(request: Request, payload: dict):
 
 
 @app.get("/internal/jobs")
-def list_internal_jobs(user_id: str, limit: int = 50):
+def list_internal_jobs(request: Request, user_id: str | None = None, limit: int = 50):
     if not internal_cfg.enabled:
         raise HTTPException(status_code=404, detail="internal mode disabled")
-    uid = user_id.strip()
-    if not uid:
-        raise HTTPException(status_code=400, detail="user_id is required")
+    uid = _resolve_job_owner_user_id(request, query_user_id=user_id, body_user_id=None)
     items = internal_repo.list_jobs_for_user(uid, limit=limit)
     base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
     for j in items:
@@ -435,12 +495,10 @@ def list_internal_jobs(user_id: str, limit: int = 50):
 
 
 @app.get("/internal/jobs/{job_id}")
-def get_internal_job(job_id: str, user_id: str):
+def get_internal_job(request: Request, job_id: str, user_id: str | None = None):
     if not internal_cfg.enabled:
         raise HTTPException(status_code=404, detail="internal mode disabled")
-    uid = user_id.strip()
-    if not uid:
-        raise HTTPException(status_code=400, detail="user_id is required")
+    uid = _resolve_job_owner_user_id(request, query_user_id=user_id, body_user_id=None)
     job = internal_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")

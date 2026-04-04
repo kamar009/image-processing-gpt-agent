@@ -20,6 +20,9 @@ def internal_client(monkeypatch, tmp_path):
         telegram_bot_token="dummy",
         worker_poll_seconds=0.01,
         max_concurrent_jobs_per_user=2,
+        jwt_secret="",
+        jwt_exp_hours=168,
+        cors_origins=(),
     )
     monkeypatch.setattr(main, "internal_cfg", cfg)
     monkeypatch.setattr(main, "internal_repo", InternalRepository(str(db_path)))
@@ -84,6 +87,9 @@ def test_internal_health_when_disabled(monkeypatch, tmp_path):
         telegram_bot_token="",
         worker_poll_seconds=1.0,
         max_concurrent_jobs_per_user=3,
+        jwt_secret="",
+        jwt_exp_hours=168,
+        cors_origins=(),
     )
     monkeypatch.setattr(main, "internal_cfg", cfg)
     client = TestClient(main.app)

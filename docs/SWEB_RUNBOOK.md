@@ -29,6 +29,10 @@ Create `.env` from `.env.example` and fill:
 - `INTERNAL_ADMIN_IDS=11111111,22222222`
 - `TELEGRAM_BOT_TOKEN=...`
 - `INTERNAL_DB_PATH=/data/internal/internal.db`
+- `INTERNAL_JWT_SECRET` — случайная строка ≥32 символов (Bearer для Mini App).
+- `INTERNAL_CORS_ORIGINS` — если Web App на другом домене, перечислите origins через запятую.
+
+Mini App: после деплоя URL вида `https://api.your-domain/miniapp/` — его указывают в BotFather как Web App.
 
 Optional for Supabase:
 

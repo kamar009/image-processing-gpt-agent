@@ -5,7 +5,8 @@
 - `INTERNAL_MODE=1` enabled.
 - Admin user IDs are configured in `INTERNAL_ADMIN_IDS`.
 - `POST /internal/admin/allow-user` adds employee Telegram IDs to whitelist.
-- `POST /internal/auth/telegram` returns user profile for allowed IDs.
+- `POST /internal/auth/telegram` returns user profile for allowed IDs; при заданном `INTERNAL_JWT_SECRET` в ответе есть `access_token` (Bearer для `/internal/jobs*`).
+- CORS: для Mini App на отдельном домене задан `INTERNAL_CORS_ORIGINS`.
 
 ## Generation flow
 
