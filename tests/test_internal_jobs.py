@@ -100,6 +100,16 @@ def test_internal_health_when_disabled(monkeypatch, tmp_path):
     assert data["status"] == "ok"
 
 
+def test_internal_client_config(internal_client):
+    r = internal_client.get("/internal/client-config")
+    assert r.status_code == 200
+    d = r.json()
+    assert "max_upload_mb" in d
+    assert "max_upload_bytes" in d
+    assert d["jwt_required"] is False
+    assert d["max_concurrent_jobs_per_user"] == 2
+
+
 def test_internal_health_when_enabled(internal_client):
     r = internal_client.get("/internal/health")
     assert r.status_code == 200

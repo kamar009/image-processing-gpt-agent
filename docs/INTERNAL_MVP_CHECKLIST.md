@@ -24,6 +24,11 @@
 - Backup script runs: `python scripts/backup_internal_db.py`.
 - Old outputs are periodically cleaned with `scripts/cleanup_outputs.py`.
 
+## Приёмка после деплоя
+
+- Чеклист запуска в прод: [PRODUCTION_GO_LIVE.md](PRODUCTION_GO_LIVE.md).
+- Скрипт: `BASE_URL=https://... python scripts/acceptance_remote_smoke.py` (опционально `INTERNAL_BEARER`).
+
 ## CI/CD
 
 - CI (ветки `main`/`master`/`dev`): тесты + проверочная сборка Docker-образа — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).

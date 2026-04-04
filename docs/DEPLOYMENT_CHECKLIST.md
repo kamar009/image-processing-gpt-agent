@@ -29,6 +29,8 @@
 
 ## Internal MVP on sweb
 
+- Чеклист env, BotFather, whitelist, cron: [PRODUCTION_GO_LIVE.md](PRODUCTION_GO_LIVE.md).
+- После деплоя: `BASE_URL=https://... python scripts/acceptance_remote_smoke.py` (опционально `INTERNAL_BEARER` для `/internal/presets`).
 - После обновления репозитория при существующей БД: `python scripts/sync_internal_presets.py` (добавит недостающие `generation_presets`; см. `--dry-run`).
 - Включить `INTERNAL_MODE=1`, `TELEGRAM_BOT_TOKEN`, `INTERNAL_ADMIN_IDS` в `.env`.
 - Проверить whitelist: `POST /internal/admin/allow-user`.

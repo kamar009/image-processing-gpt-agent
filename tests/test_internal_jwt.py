@@ -82,6 +82,12 @@ def test_jobs_require_bearer_when_jwt_configured(internal_client_jwt):
     assert r.status_code == 401
 
 
+def test_client_config_shows_jwt_required(internal_client_jwt):
+    r = internal_client_jwt.get("/internal/client-config")
+    assert r.status_code == 200
+    assert r.json()["jwt_required"] is True
+
+
 def test_invalid_bearer_rejected(internal_client_jwt):
     r = internal_client_jwt.get(
         "/internal/jobs",

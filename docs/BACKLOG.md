@@ -4,7 +4,7 @@
 
 ## P0 — стабильность и эксплуатация
 
-1. **Единый формат ошибок** — клиент всегда получает осмысленный `detail` и различимые коды (400 / 413 / 422 / 502 / 500). *(Частично закрыто документацией и кодом `502` для Vision.)*
+1. **Единый формат ошибок** — клиент всегда получает осмысленный `detail` и различимые коды (400 / 413 / 422 / 502 / 500). Mini App парсит `detail` (строка или массив validation). *(Частично закрыто документацией и кодом `502` для Vision.)*
 2. **Мониторинг диска** — в API: `GET /metrics` и `GET /internal/health` отдают `disk_volume_*`; при заполнении ≥ `DISK_USAGE_CRITICAL_PCT` internal health становится `degraded`. На VPS: `scripts/check_disk_space.py` + пример cron в [deploy/sweb/cron-maintenance.example](../deploy/sweb/cron-maintenance.example).
 3. **Расписание cleanup** — пример cron для Docker в [deploy/sweb/cron-maintenance.example](../deploy/sweb/cron-maintenance.example); политика в [OUTPUTS_POLICY.md](OUTPUTS_POLICY.md).
 
@@ -27,6 +27,6 @@
 
 ## Критерий «готово к следующему релизу»
 
-- Прогон **8–12 реальных** изображений по всем `type` без P0-дефектов.
+- Прогон **8–12 реальных** изображений по всем `type` без P0-дефектов — шаблон [QA_REAL_IMAGES.md](QA_REAL_IMAGES.md).
 - Документированные retention и cleanup на проде.
 - Клиент корректно обрабатывает 200/422/413/502 по [INTEGRATION.md](INTEGRATION.md).

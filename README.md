@@ -66,13 +66,14 @@ docker compose up --build
 - Рекомендуется **`INTERNAL_JWT_SECRET`** (строка ≥32 символов): после входа выдаётся `access_token`, запросы **`POST/GET /internal/jobs*`** идут с заголовком `Authorization: Bearer …` (без подделки `user_id`).
 - **`INTERNAL_CORS_ORIGINS`** — список через запятую для браузерного Mini App на другом origin (например `https://app.example.com`).
 
-Telegram Mini App (статика): после деплоя откройте **`/miniapp/`** (тот же хост, что и API) и укажите этот URL в BotFather как Web App. Если фронт на другом домене — задайте в `index.html`/`window.__API_BASE__` базовый URL API и добавьте origin в `INTERNAL_CORS_ORIGINS`.
+Telegram Mini App (статика): после деплоя откройте **`/miniapp/`** (тот же хост, что и API) и укажите этот URL в BotFather как Web App. Чеклист вывода в прод: [docs/PRODUCTION_GO_LIVE.md](docs/PRODUCTION_GO_LIVE.md). Лимиты для клиента: **`GET /internal/client-config`** (`max_upload_mb`, `jwt_required`, …). Если фронт на другом домене — задайте в `index.html`/`window.__API_BASE__` базовый URL API и добавьте origin в `INTERNAL_CORS_ORIGINS`.
 
 Новые endpoint-ы:
 
 - `GET /internal/health` (при `INTERNAL_MODE=1`: `db_ok`, `outputs_writable`; `status=degraded` если БД или каталог вывода недоступны)
 - `POST /internal/auth/telegram` (валидация init data)
 - `POST /internal/admin/allow-user` (whitelist)
+- `GET /internal/client-config` (лимиты для Mini App: `max_upload_mb`, `jwt_required`, …)
 - `GET /internal/presets` (активные сценарии из БД `generation_presets`)
 - `POST /internal/jobs` (тело: `user_id`, `preset_key`, `image_base64`; лимит размера как у `MAX_UPLOAD_MB`; не больше `INTERNAL_MAX_CONCURRENT_JOBS_PER_USER` активных задач на пользователя)
 - `GET /internal/jobs?user_id=...&limit=50` (история задач пользователя)

@@ -411,6 +411,25 @@ async def allow_user(payload: dict):
     return {"ok": True, "telegram_id": telegram_id}
 
 
+@app.get("/internal/client-config")
+def internal_client_config():
+    """Публичные лимиты для Mini App (без секретов)."""
+    if not internal_cfg.enabled:
+        raise HTTPException(status_code=404, detail="internal mode disabled")
+    try:
+        mb = float(os.environ.get("MAX_UPLOAD_MB", "25"))
+    except ValueError:
+        mb = 25.0
+    mb = max(1.0, min(mb, 100.0))
+    return {
+        "max_upload_mb": mb,
+        "max_upload_bytes": int(mb * 1024 * 1024),
+        "max_concurrent_jobs_per_user": internal_cfg.max_concurrent_jobs_per_user,
+        "jwt_required": bool(internal_cfg.jwt_secret),
+        "presets_count_hint": len(internal_repo.list_presets()),
+    }
+
+
 @app.get("/internal/presets")
 def list_internal_presets():
     if not internal_cfg.enabled:

@@ -21,6 +21,8 @@ cd /opt/app
 
 ## 3) Configure env
 
+Краткий чеклист вывода Mini App в прод: [PRODUCTION_GO_LIVE.md](PRODUCTION_GO_LIVE.md).
+
 Create `.env` from `.env.example` and fill:
 
 - `OPENAI_API_KEY`
