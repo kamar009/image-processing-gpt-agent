@@ -177,11 +177,11 @@ Deployment checklist: [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.m
 В репозитории ведутся ветки **`main`** (прод) и **`dev`** (интеграция). Локально после `git init` привяжите remote и отправьте обе ветки:
 
 ```bash
-git remote add origin https://github.com/<USER>/<REPO>.git
+git remote add origin https://github.com/kamar009/image-processing-gpt-agent.git
 git push -u origin main
 git push -u origin dev
 ```
 
-Подставьте свой URL репозитория. Имя и email коммитера при необходимости: `git config user.name "..."` и `git config user.email "..."` (локально в каталоге проекта или `--global`).
+Репозиторий: [github.com/kamar009/image-processing-gpt-agent](https://github.com/kamar009/image-processing-gpt-agent). Имя и email коммитера при необходимости: `git config user.name "..."` и `git config user.email "..."` (локально в каталоге проекта или `--global`).
 
 Секрет **`SWEB_PUBLIC_BASE`** в GitHub → *Settings → Secrets and variables → Actions* задаётся только в веб-интерфейсе (API-токен с правом на секреты не хранится в проекте). Значение: публичный базовый URL API, например `https://api.example.com` (без завершающего `/`).
