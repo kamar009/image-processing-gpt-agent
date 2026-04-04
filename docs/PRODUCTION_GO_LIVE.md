@@ -59,6 +59,18 @@ python scripts/acceptance_remote_smoke.py
 
 - Ручные чеклисты: [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) (internal + этап 7), [INTERNAL_MVP_CHECKLIST.md](INTERNAL_MVP_CHECKLIST.md).
 
+## Если Deploy SWEB в GitHub Actions красный (8–15 секунд)
+
+1. Откройте упавший run → шаг **Deploy over SSH** → прочитайте **первые строки лога**.
+2. **Connection closed / Permission denied (publickey)** — проверьте секреты:
+   - `SWEB_HOST`: IP (`77.222.63.127`) или домен, **без** `ssh://` и без лишних пробелов.
+   - `SWEB_USER`: пользователь, в чей `~/.ssh/authorized_keys` добавлен **публичный** ключ из пары, чей **приватный** ключ лежит в `SWEB_SSH_KEY`.
+   - `SWEB_SSH_KEY`: весь PEM целиком, включая строки `BEGIN ... KEY` / `END ... KEY`; в GitHub — многострочный secret допустим.
+3. С ПК проверьте вход тем же пользователем:  
+   `ssh -i путь/к/приватному SWEB_USER@SWEB_HOST`
+4. **`/opt/app not found` или нет `docker-compose.yml`** — на VPS ещё не сделан первичный сетап: [SWEB_RUNBOOK.md](SWEB_RUNBOOK.md) (bootstrap, `git clone` в `/opt/app`, `.env`).
+5. Ошибка уже **после** `docker compose` — смотрите полный лог; часто не хватает `.env` на сервере или падает сборка образа.
+
 ## 6. Наблюдаемость (кратко)
 
 - Периодический опрос **`GET /internal/health`**: при `status=degraded` или `disk_status=critical` — триггер в вашем мониторинге (Uptime Kuma, cron + curl, …).

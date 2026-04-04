@@ -25,7 +25,16 @@ jobs:
           key: ${{ secrets.SWEB_SSH_KEY }}
           script: |
             set -euo pipefail
+            if [ ! -d /opt/app ]; then
+              echo "ERROR: /opt/app not found. One-time on VPS: create deploy user, install Docker,"
+              echo "  clone repo to /opt/app (see deploy/sweb/bootstrap-vps.sh and docs/SWEB_RUNBOOK.md)."
+              exit 1
+            fi
             cd /opt/app
+            if [ ! -f deploy/sweb/docker-compose.yml ]; then
+              echo "ERROR: /opt/app exists but is not the project root (missing deploy/sweb/docker-compose.yml)."
+              exit 1
+            fi
             git pull --ff-only
             docker compose -f deploy/sweb/docker-compose.yml build
             docker compose -f deploy/sweb/docker-compose.yml up -d
