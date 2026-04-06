@@ -12,6 +12,12 @@
 sudo APP_USER=deploy APP_DIR=/opt/app bash deploy/sweb/bootstrap-vps.sh
 ```
 
+Если после этого `git pull` под **root** пишет `dubious ownership` (каталог принадлежит `deploy`), один раз:
+
+```bash
+git config --global --add safe.directory /opt/app
+```
+
 Then login as deploy user:
 
 ```bash
@@ -52,6 +58,34 @@ Optional for Supabase:
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
+
+## 3b) После успешного `git pull` на VPS
+
+1. Код актуален: `cd /opt/app && git pull` (при необходимости `git config --global --add safe.directory /opt/app` — см. §2).
+2. Если файла **`.env` ещё нет**: `bash deploy/sweb/init-env-from-example.sh`, затем `nano /opt/app/.env` и заполните переменные (§3).
+3. Сборка и запуск:
+
+```bash
+cd /opt/app
+docker compose -f deploy/sweb/docker-compose.yml build
+docker compose -f deploy/sweb/docker-compose.yml up -d
+```
+
+4. Проверка **API** без nginx/SSL (пока нет сертификатов контейнер `nginx` может не стартовать — см. примечание ниже):
+
+```bash
+docker compose -f deploy/sweb/docker-compose.yml exec -T api curl -fsS http://127.0.0.1:8000/health
+```
+
+5. Синхронизация пресетов (как в GitHub Actions):
+
+```bash
+docker compose -f deploy/sweb/docker-compose.yml exec -T api python scripts/sync_internal_presets.py --db /data/internal/internal.db
+```
+
+6. Автодеплой из репозитория: **Actions → Deploy SWEB → Run workflow** (или push в `main`).
+
+**Примечание:** `deploy/sweb/nginx.conf` проксирует на HTTPS и ожидает каталог Let's Encrypt. До `issue-cert.sh` смотрите статус: `docker compose ... ps` и логи `nginx`. Для смока API используйте `exec -T api curl` как в п.4.
 
 ## 4) First deploy
 
