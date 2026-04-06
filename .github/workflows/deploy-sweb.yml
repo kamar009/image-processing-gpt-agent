@@ -35,6 +35,13 @@ jobs:
               echo "ERROR: /opt/app exists but is not the project root (missing deploy/sweb/docker-compose.yml)."
               exit 1
             fi
+            if [ ! -f /opt/app/.env ]; then
+              echo "ERROR: /opt/app/.env not found."
+              echo "On VPS once: cp /opt/app/.env.example /opt/app/.env && nano /opt/app/.env"
+              echo "Or: bash /opt/app/deploy/sweb/init-env-from-example.sh"
+              exit 1
+            fi
+            git config --global --add safe.directory /opt/app
             git pull --ff-only
             docker compose -f deploy/sweb/docker-compose.yml build
             docker compose -f deploy/sweb/docker-compose.yml up -d

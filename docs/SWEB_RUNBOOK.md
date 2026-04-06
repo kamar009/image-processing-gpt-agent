@@ -23,6 +23,16 @@ cd /opt/app
 
 Краткий чеклист вывода Mini App в прод: [PRODUCTION_GO_LIVE.md](PRODUCTION_GO_LIVE.md).
 
+Первый файл окружения на VPS (после `git clone` в `/opt/app`):
+
+```bash
+cd /opt/app
+bash deploy/sweb/init-env-from-example.sh
+nano /opt/app/.env
+```
+
+Секреты в репозиторий не коммитить. Для случайного `INTERNAL_JWT_SECRET` (≥32 символа): `openssl rand -base64 48`.
+
 Create `.env` from `.env.example` and fill:
 
 - `OPENAI_API_KEY`
