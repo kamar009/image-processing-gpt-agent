@@ -132,6 +132,14 @@
       <option value="500">500 КБ</option>
     </select>
 
+    <label for="vision_choice">Модель Vision</label>
+    <select id="vision_choice" name="vision_choice">
+      <option value="">По умолчанию сервера</option>
+      <option value="sber_max">Sber GigaChat-2-Max</option>
+      <option value="sber_pro">Sber GigaChat-2-Pro</option>
+      <option value="openai">OpenAI</option>
+    </select>
+
     <details>
       <summary>Дополнительные настройки</summary>
       <label for="style">Стиль обработки</label>
@@ -232,6 +240,16 @@
     if (qual) fd.append("quality_level", qual);
     const maxOutputKb = document.getElementById("max_output_kb").value;
     if (maxOutputKb) fd.append("max_output_kb", maxOutputKb);
+    const visionChoice = document.getElementById("vision_choice").value;
+    if (visionChoice === "sber_max") {
+      fd.append("vision_provider", "sber");
+      fd.append("vision_model", "GigaChat-2-Max");
+    } else if (visionChoice === "sber_pro") {
+      fd.append("vision_provider", "sber");
+      fd.append("vision_model", "GigaChat-2-Pro");
+    } else if (visionChoice === "openai") {
+      fd.append("vision_provider", "openai");
+    }
 
     submitBtn.disabled = true;
     try {

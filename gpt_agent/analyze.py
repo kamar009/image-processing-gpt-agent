@@ -144,10 +144,11 @@ def analyze_image_for_pipeline(
     image_type: ImageType,
     style: StylePreset = StylePreset.neutral,
     *,
+    provider: str | None = None,
     model: str | None = None,
     timeout: float = 60.0,
 ) -> VisionAnalysis:
-    cfg = _load_provider_config(model=model, timeout=timeout)
+    cfg = _load_provider_config(provider=provider, model=model, timeout=timeout)
     if cfg.provider == "fallback":
         logger.info("VISION_PROVIDER=fallback; using heuristic fallback analysis")
         return _fallback_analysis(image, image_type)
@@ -170,8 +171,8 @@ def analyze_image_for_pipeline(
         return _fallback_analysis(image, image_type)
 
 
-def _load_provider_config(*, model: str | None, timeout: float) -> VisionProviderConfig:
-    provider = os.environ.get("VISION_PROVIDER", "openai").strip().lower()
+def _load_provider_config(*, provider: str | None, model: str | None, timeout: float) -> VisionProviderConfig:
+    provider = (provider or os.environ.get("VISION_PROVIDER", "openai")).strip().lower()
     if provider not in ("openai", "sber", "yandex", "fallback"):
         logger.warning("Unknown VISION_PROVIDER=%s; fallback to openai", provider)
         provider = "openai"

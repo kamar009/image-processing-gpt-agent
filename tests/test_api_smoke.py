@@ -66,3 +66,27 @@ def test_process_image_rejects_invalid_max_output_kb(mock_vision):
     assert r.status_code == 422, r.text
     data = r.json()
     assert "max_output_kb must be one of" in data["detail"]
+
+
+@patch("main.analyze_image_for_pipeline")
+def test_process_image_with_vision_choice_openai(mock_vision):
+    mock_vision.return_value = VisionAnalysis(scene_description="mock")
+    client = TestClient(app)
+    im = Image.new("RGB", (600, 600), (90, 120, 140))
+    buf = BytesIO()
+    im.save(buf, format="PNG")
+    buf.seek(0)
+    r = client.post(
+        "/process-image",
+        files={"image": ("x.png", buf.getvalue(), "image/png")},
+        data={
+            "type": "product",
+            "background": "keep",
+            "format": "webp",
+            "vision_provider": "openai",
+        },
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["vision_provider"] == "openai"
+    assert data["vision_model"]

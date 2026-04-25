@@ -209,6 +209,8 @@ def _disk_thresholds() -> tuple[float, float]:
 
 _E = TypeVar("_E", bound=Enum)
 _ALLOWED_MAX_OUTPUT_KB = {150, 200, 250, 300, 350, 400, 500}
+_ALLOWED_VISION_PROVIDERS = {"openai", "sber"}
+_ALLOWED_SBER_MODELS = {"GigaChat-2-Max", "GigaChat-2-Pro"}
 
 
 def _parse_enum(raw: str | None, cls: type[_E], default: _E) -> _E:
@@ -234,6 +236,30 @@ def _parse_max_output_kb(raw: str | None, default_kb: int) -> int:
         allowed = ", ".join(str(v) for v in sorted(_ALLOWED_MAX_OUTPUT_KB))
         raise HTTPException(status_code=422, detail=f"max_output_kb must be one of: {allowed}")
     return value
+
+
+def _resolve_vision_provider_and_model(
+    provider_raw: str | None,
+    model_raw: str | None,
+) -> tuple[str, str | None]:
+    default_provider = os.environ.get("VISION_PROVIDER", "openai").strip().lower()
+    provider = (provider_raw or default_provider or "openai").strip().lower()
+    if provider not in _ALLOWED_VISION_PROVIDERS:
+        allowed = ", ".join(sorted(_ALLOWED_VISION_PROVIDERS))
+        raise HTTPException(status_code=422, detail=f"vision_provider must be one of: {allowed}")
+
+    model = (model_raw or "").strip() or None
+    if provider == "sber":
+        if model is None:
+            model = os.environ.get("SBER_VISION_MODEL", "GigaChat-2-Pro").strip() or "GigaChat-2-Pro"
+        if model not in _ALLOWED_SBER_MODELS:
+            allowed = ", ".join(sorted(_ALLOWED_SBER_MODELS))
+            raise HTTPException(status_code=422, detail=f"vision_model for sber must be one of: {allowed}")
+        return provider, model
+
+    if model is None:
+        model = os.environ.get("OPENAI_MODEL", "gpt-4o").strip() or "gpt-4o"
+    return provider, model
 
 
 @app.get("/health")
@@ -554,6 +580,8 @@ async def process_image(
     crop_mode: Annotated[str | None, Form()] = None,
     quality_level: Annotated[str | None, Form()] = None,
     max_output_kb: Annotated[str | None, Form()] = None,
+    vision_provider: Annotated[str | None, Form()] = None,
+    vision_model: Annotated[str | None, Form()] = None,
 ):
     try:
         image_type = ImageType(type)
@@ -567,6 +595,7 @@ async def process_image(
     crop = _parse_enum(crop_mode, CropMode, preset.default_crop)
     qual = _parse_enum(quality_level, QualityLevel, preset.default_quality)
     effective_max_output_kb = _parse_max_output_kb(max_output_kb, preset.max_kb)
+    effective_vision_provider, effective_vision_model = _resolve_vision_provider_and_model(vision_provider, vision_model)
 
     max_bytes = _max_upload_bytes()
     raw = await image.read()
@@ -585,7 +614,13 @@ async def process_image(
 
     t_all = time.perf_counter()
     try:
-        vision = analyze_image_for_pipeline(pil, image_type, sty)
+        vision = analyze_image_for_pipeline(
+            pil,
+            image_type,
+            sty,
+            provider=effective_vision_provider,
+            model=effective_vision_model,
+        )
     except Exception as e:
         logger.exception(
             "vision_failed request_id=%s type=%s",
@@ -652,6 +687,8 @@ async def process_image(
         "validation_warnings": v.warnings,
         "processing_time_ms": elapsed_ms,
         "vision_ms": vision_ms,
+        "vision_provider": effective_vision_provider,
+        "vision_model": effective_vision_model,
         "pipeline_wall_ms": pipeline_wall_ms,
         "vision_scene": vision.scene_description[:200],
         **result.timing_ms,
