@@ -83,72 +83,84 @@
   </style>
 </head>
 <body>
-  <h1>Подготовка изображения для сайта</h1>
-  <p class="sub">Загрузите файл и выберите пресет. Ответ API — тот же, что у <code>POST /process-image</code>.</p>
+  <h1>Подготовка изображения</h1>
+  <p class="sub">Загрузите изображение, выберите нужные параметры и нажмите «Обработать изображение».</p>
 
   <form id="form" class="card">
-    <label for="image">Файл изображения</label>
+    <label for="image">Изображение</label>
     <input id="image" name="image" type="file" accept="image/*" required>
 
     <div class="row">
       <div>
-        <label for="type">Тип (type)</label>
+        <label for="type">Тип изображения</label>
         <select id="type" name="type" required>
-          <option value="product">product</option>
-          <option value="category">category</option>
-          <option value="banner">banner</option>
-          <option value="portfolio_interior">portfolio_interior</option>
+          <option value="product">Товар</option>
+          <option value="category">Категория</option>
+          <option value="banner">Баннер</option>
+          <option value="portfolio_interior">Интерьер (портфолио)</option>
         </select>
       </div>
       <div>
-        <label for="background">Фон (background)</label>
+        <label for="background">Фон</label>
         <select id="background" name="background">
-          <option value="">по умолчанию пресета</option>
-          <option value="keep">keep</option>
-          <option value="white">white</option>
-          <option value="transparent">transparent</option>
-          <option value="clean">clean</option>
+          <option value="">По умолчанию (как в пресете)</option>
+          <option value="keep">Сохранить исходный</option>
+          <option value="white">Белый</option>
+          <option value="transparent">Прозрачный</option>
+          <option value="clean">Очистить фон</option>
         </select>
       </div>
     </div>
 
-    <label for="format">Формат (format)</label>
+    <label for="format">Формат файла</label>
     <select id="format" name="format">
-      <option value="">по умолчанию пресета</option>
-      <option value="webp">webp</option>
-      <option value="jpeg">jpeg</option>
-      <option value="png">png</option>
+      <option value="">По умолчанию (как в пресете)</option>
+      <option value="webp">WebP (рекомендуется)</option>
+      <option value="jpeg">JPEG</option>
+      <option value="png">PNG</option>
+    </select>
+
+    <label for="max_output_kb">Максимальный размер выходного файла</label>
+    <select id="max_output_kb" name="max_output_kb">
+      <option value="">По умолчанию (как в пресете)</option>
+      <option value="150">150 КБ</option>
+      <option value="200">200 КБ</option>
+      <option value="250">250 КБ</option>
+      <option value="300">300 КБ</option>
+      <option value="350">350 КБ</option>
+      <option value="400">400 КБ</option>
+      <option value="500">500 КБ</option>
     </select>
 
     <details>
-      <summary>Дополнительно (style, crop, quality)</summary>
-      <label for="style">style</label>
+      <summary>Дополнительные настройки</summary>
+      <label for="style">Стиль обработки</label>
       <select id="style" name="style">
-        <option value="">по умолчанию (neutral)</option>
-        <option value="neutral">neutral</option>
-        <option value="premium">premium</option>
-        <option value="light">light</option>
+        <option value="">По умолчанию</option>
+        <option value="neutral">Нейтральный</option>
+        <option value="premium">Премиум</option>
+        <option value="light">Легкий</option>
       </select>
-      <label for="crop_mode">crop_mode</label>
+      <label for="crop_mode">Обрезка</label>
       <select id="crop_mode" name="crop_mode">
-        <option value="">по умолчанию пресета</option>
-        <option value="center">center</option>
-        <option value="smart">smart</option>
+        <option value="">По умолчанию (как в пресете)</option>
+        <option value="center">По центру</option>
+        <option value="smart">Умная</option>
       </select>
-      <label for="quality_level">quality_level</label>
+      <label for="quality_level">Качество</label>
       <select id="quality_level" name="quality_level">
-        <option value="">по умолчанию пресета</option>
-        <option value="standard">standard</option>
-        <option value="high">high</option>
+        <option value="">По умолчанию (как в пресете)</option>
+        <option value="standard">Стандартное</option>
+        <option value="high">Высокое</option>
       </select>
     </details>
 
-    <button type="submit" id="submit">Обработать</button>
+    <button type="submit" id="submit">Обработать изображение</button>
     <div id="err" class="error" hidden></div>
   </form>
 
   <div class="card" id="inPreviewCard" hidden>
-    <h2 class="preview-wrap" style="margin:0;font-size:0.9rem;color:var(--muted)">Вход</h2>
+    <h2 class="preview-wrap" style="margin:0;font-size:0.9rem;color:var(--muted)">Исходное изображение</h2>
     <div class="preview-wrap">
       <img id="inPreview" alt="Входное изображение">
     </div>
@@ -161,7 +173,7 @@
     </div>
     <div id="validationMsg" class="ok-warn" hidden></div>
     <div id="meta" class="meta"></div>
-    <a id="download" class="btn" href="#" download hidden>Скачать</a>
+    <a id="download" class="btn" href="#" download hidden>Скачать файл</a>
   </div>
 
   <script>
@@ -218,6 +230,8 @@
     if (crop) fd.append("crop_mode", crop);
     const qual = document.getElementById("quality_level").value;
     if (qual) fd.append("quality_level", qual);
+    const maxOutputKb = document.getElementById("max_output_kb").value;
+    if (maxOutputKb) fd.append("max_output_kb", maxOutputKb);
 
     submitBtn.disabled = true;
     try {

@@ -208,6 +208,7 @@ def _disk_thresholds() -> tuple[float, float]:
 
 
 _E = TypeVar("_E", bound=Enum)
+_ALLOWED_MAX_OUTPUT_KB = {150, 200, 250, 300, 350, 400, 500}
 
 
 def _parse_enum(raw: str | None, cls: type[_E], default: _E) -> _E:
@@ -220,6 +221,19 @@ def _parse_enum(raw: str | None, cls: type[_E], default: _E) -> _E:
             return cls[raw]
         except Exception:
             raise HTTPException(status_code=400, detail=f"invalid value for {cls.__name__}: {raw}") from None
+
+
+def _parse_max_output_kb(raw: str | None, default_kb: int) -> int:
+    if raw is None or raw == "":
+        return default_kb
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="max_output_kb must be an integer") from exc
+    if value not in _ALLOWED_MAX_OUTPUT_KB:
+        allowed = ", ".join(str(v) for v in sorted(_ALLOWED_MAX_OUTPUT_KB))
+        raise HTTPException(status_code=422, detail=f"max_output_kb must be one of: {allowed}")
+    return value
 
 
 @app.get("/health")
@@ -539,6 +553,7 @@ async def process_image(
     style: Annotated[str | None, Form()] = None,
     crop_mode: Annotated[str | None, Form()] = None,
     quality_level: Annotated[str | None, Form()] = None,
+    max_output_kb: Annotated[str | None, Form()] = None,
 ):
     try:
         image_type = ImageType(type)
@@ -551,6 +566,7 @@ async def process_image(
     sty = _parse_enum(style, StylePreset, StylePreset.neutral)
     crop = _parse_enum(crop_mode, CropMode, preset.default_crop)
     qual = _parse_enum(quality_level, QualityLevel, preset.default_quality)
+    effective_max_output_kb = _parse_max_output_kb(max_output_kb, preset.max_kb)
 
     max_bytes = _max_upload_bytes()
     raw = await image.read()
@@ -594,6 +610,7 @@ async def process_image(
             sty,
             vision,
             preset,
+            max_output_kb=effective_max_output_kb,
         )
     except Exception as e:
         logger.exception("pipeline failed")
@@ -615,7 +632,7 @@ async def process_image(
     file_id, out_path = storage.new_file_id(ext)
     out_path.write_bytes(result.data)
 
-    v = validate_output(out_path, preset, out_fmt, preset.max_kb)
+    v = validate_output(out_path, preset, out_fmt, effective_max_output_kb)
     base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
     download_url = f"{base}/outputs/{file_id}" if base else f"/outputs/{file_id}"
 
@@ -627,6 +644,7 @@ async def process_image(
         "height": result.height,
         "format": result.format,
         "size_kb": round(result.size_kb, 2),
+        "max_output_kb": effective_max_output_kb,
         "background": result.background,
         "operations": result.operations,
         "validation_ok": v.ok,

@@ -103,6 +103,7 @@ def run_pipeline(
     style: StylePreset,
     vision: VisionAnalysis,
     preset: PresetConfig,
+    max_output_kb: int | None = None,
     deadline: float | None = None,
 ) -> ProcessResult:
     if deadline is None:
@@ -247,7 +248,8 @@ def run_pipeline(
         working = ops.unsharp(working, radius=0.9, percent=115, threshold=3)
         ops_list.append("sharpness")
 
-    max_bytes = preset.max_kb * 1024
+    effective_max_kb = max_output_kb if max_output_kb is not None else preset.max_kb
+    max_bytes = effective_max_kb * 1024
     qh, ql = _quality_range(quality_level, output_format)
     fmt = _fmt_name(output_format)
 
