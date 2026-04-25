@@ -1,5 +1,7 @@
 # SWEB VPS runbook (internal MVP)
 
+**Этап 2 — только публичный API** (загрузка → обработка → скачивание, без обязательного Telegram/internal): пошаговая инструкция с контрольными точками для руководителя и исполнителя — [STAGE2_SPACEWEB_PUBLIC.md](STAGE2_SPACEWEB_PUBLIC.md). Режим **`INTERNAL_MODE`** на сервере задаётся в **`/opt/app/.env`** (в Docker Compose не переопределяется).
+
 ## 1) VPS baseline
 
 - Recommended: 2 vCPU, 4 GB RAM, 40+ GB NVMe, Ubuntu 22.04/24.04.
@@ -41,7 +43,7 @@ nano /opt/app/.env
 
 Create `.env` from `.env.example` and fill:
 
-- `OPENAI_API_KEY`
+- `SBER_VISION_AUTH_KEY` (preferred) or `SBER_VISION_API_KEY`
 - `PUBLIC_BASE_URL=https://api.your-domain`
 - `INTERNAL_MODE=1`
 - `INTERNAL_ADMIN_IDS=11111111,22222222`
@@ -49,6 +51,17 @@ Create `.env` from `.env.example` and fill:
 - `INTERNAL_DB_PATH=/data/internal/internal.db`
 - `INTERNAL_JWT_SECRET` — случайная строка ≥32 символов (Bearer для Mini App).
 - `INTERNAL_CORS_ORIGINS` — если Web App на другом домене, перечислите origins через запятую.
+
+Production default for `deploy/sweb/docker-compose.yml` is now:
+
+- `VISION_PROVIDER=sber`
+- `SBER_VISION_MODEL=GigaChat-2-Max`
+
+These defaults are set in compose for SWEB only and do not change local defaults.
+If needed, override on server with:
+
+- `PROD_VISION_PROVIDER=...`
+- `PROD_SBER_VISION_MODEL=...`
 
 Mini App: после деплоя URL вида `https://api.your-domain/miniapp/` — его указывают в BotFather как Web App.
 
@@ -71,10 +84,16 @@ docker compose -f deploy/sweb/docker-compose.yml build
 docker compose -f deploy/sweb/docker-compose.yml up -d
 ```
 
-4. Проверка **API** без nginx/SSL (пока нет сертификатов контейнер `nginx` может не стартовать — см. примечание ниже):
+4. Проверка **API** через nginx на **порту 80** (до выпуска сертификата `deploy/sweb/nginx.conf` по умолчанию только HTTP; HTTPS включается после `issue-cert.sh`):
 
 ```bash
-docker compose -f deploy/sweb/docker-compose.yml exec -T api curl -fsS http://127.0.0.1:8000/health
+curl -fsS http://127.0.0.1/health
+```
+
+Либо напрямую в контейнер `api` (если с хоста порт 80 закрыт):
+
+```bash
+docker compose -f deploy/sweb/docker-compose.yml exec -T api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read().decode())"
 ```
 
 5. Синхронизация пресетов (как в GitHub Actions):
@@ -85,7 +104,7 @@ docker compose -f deploy/sweb/docker-compose.yml exec -T api python scripts/sync
 
 6. Автодеплой из репозитория: **Actions → Deploy SWEB → Run workflow** (или push в `main`).
 
-**Примечание:** `deploy/sweb/nginx.conf` проксирует на HTTPS и ожидает каталог Let's Encrypt. До `issue-cert.sh` смотрите статус: `docker compose ... ps` и логи `nginx`. Для смока API используйте `exec -T api curl` как в п.4.
+**Примечание:** до `issue-cert.sh` в репозитории используется **HTTP-only** `nginx.conf` (порт 80, прокси на API + webroot для Certbot). После выпуска сертификата скрипт подставляет конфиг из `nginx.tls.template`. Если nginx всё ещё в `Restarting`, проверьте логи: `docker compose -f deploy/sweb/docker-compose.yml logs nginx --tail 50`.
 
 ## 4) First deploy
 

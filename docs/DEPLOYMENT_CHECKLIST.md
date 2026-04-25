@@ -1,5 +1,13 @@
 # Deployment checklist
 
+## Этап 2 — SpaceWeb, только публичный сценарий
+
+Цель: сервис на VPS SpaceWeb по `deploy/sweb/docker-compose.yml` принимает изображение, обрабатывает и отдаёт файл по HTTPS. Внутренний MVP (Telegram, очередь) можно не включать.
+
+- Пошаговый сценарий с комментариями и галочками: [STAGE2_SPACEWEB_PUBLIC.md](STAGE2_SPACEWEB_PUBLIC.md).
+- Минимум в `.env` на сервере: ключи выбранного vision-провайдера (для текущего SWEB-дефолта: `SBER_VISION_AUTH_KEY` или `SBER_VISION_API_KEY`), `PUBLIC_BASE_URL=https://api.ваш-домен`, **`INTERNAL_MODE=0`** для этапа 2.
+- После выкладки: `GET /health`, один `POST /process-image`, скачивание по `download_url` или `GET /outputs/{file_id}`; опционально `python scripts/integration_smoke.py --base-url https://api.ваш-домен --image path/to.png --strict`.
+
 ## Docker Compose
 
 - Собрать и поднять: `docker compose up --build` из корня репозитория. Переменные см. [`.env.example`](../.env.example); при отсутствии `.env` compose не подхватит ключ (файл опционален, см. `docker-compose.yml`).
@@ -9,7 +17,7 @@
 
 ## Перед релизом
 
-- Проверить `.env` (минимум `OPENAI_API_KEY`, `MAX_UPLOAD_MB`, `OUTPUT_DIR`, `PUBLIC_BASE_URL` при необходимости).
+- Проверить `.env` (минимум ключи vision-провайдера, `MAX_UPLOAD_MB`, `OUTPUT_DIR`, `PUBLIC_BASE_URL` при необходимости).
 - Убедиться, что установлены прод-зависимости: `pip install -r requirements.txt`.
 - Выполнить быстрый smoke: `python scripts/integration_smoke.py --image path/to/image.png --strict`.
 - Проверить очистку outputs: `python scripts/cleanup_outputs.py --dry-run`.

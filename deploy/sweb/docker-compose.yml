@@ -25,8 +25,11 @@ services:
       - ../../.env
     environment:
       OUTPUT_DIR: /data/outputs
-      INTERNAL_MODE: "1"
       INTERNAL_DB_PATH: /data/internal/internal.db
+      # Production default provider/model for SWEB deploy.
+      # Can be overridden in server environment if needed.
+      VISION_PROVIDER: ${PROD_VISION_PROVIDER:-sber}
+      SBER_VISION_MODEL: ${PROD_SBER_VISION_MODEL:-GigaChat-2-Max}
     volumes:
       - outputs_data:/data/outputs
       - internal_data:/data/internal
@@ -48,9 +51,11 @@ services:
       - ../../.env
     environment:
       OUTPUT_DIR: /data/outputs
-      INTERNAL_MODE: "1"
       INTERNAL_DB_PATH: /data/internal/internal.db
       WORKER_POLL_SECONDS: "3"
+      # Keep worker aligned with API provider/model in production.
+      VISION_PROVIDER: ${PROD_VISION_PROVIDER:-sber}
+      SBER_VISION_MODEL: ${PROD_SBER_VISION_MODEL:-GigaChat-2-Max}
     volumes:
       - outputs_data:/data/outputs
       - internal_data:/data/internal
