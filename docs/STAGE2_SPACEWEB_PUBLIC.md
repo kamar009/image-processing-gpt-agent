@@ -29,7 +29,7 @@
 
 | № | Требование | Зачем |
 |---|------------|--------|
-| 1 | VPS SpaceWeb с Ubuntu 22.04/24.04, доступ по SSH | Как в runbook |
+| 1 | VPS SpaceWeb с Ubuntu 22.04/24.04, доступ по SSH | Как в runbook; локально: пользователь **`deploy`**, ключ **`~/.ssh/sweb_deploy_github2`** — см. **§2b** в [SWEB_RUNBOOK.md](SWEB_RUNBOOK.md) |
 | 2 | DNS: запись типа **A** для поддомена API (например `api.example.com`) на **публичный IP** VPS | HTTPS и стабильный `PUBLIC_BASE_URL` |
 | 3 | Код проекта в **`/opt/app`** (клон репозитория или деплой из CI) | Единый путь в документации |
 | 4 | Ключ для выбранного vision-провайдера (для текущего прод-дефолта Sber: **`SBER_VISION_AUTH_KEY`** или `SBER_VISION_API_KEY`) | Этап анализа изображения в пайплайне |

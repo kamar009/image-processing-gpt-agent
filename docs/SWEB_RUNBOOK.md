@@ -27,6 +27,27 @@ sudo -iu deploy
 cd /opt/app
 ```
 
+## 2b) SSH с рабочей машины (агент / разработчик)
+
+Для ручного входа на VPS и деплоя (`git pull`, `docker compose` в `/opt/app`) используйте:
+
+| Параметр | Значение |
+|----------|----------|
+| Пользователь SSH | **`deploy`** |
+| Приватный ключ (локально) | **`~/.ssh/sweb_deploy_github2`** (файл ключа с именем `sweb_deploy_github2`) |
+
+Пример:
+
+```bash
+ssh -i ~/.ssh/sweb_deploy_github2 deploy@<SWEB_HOST>
+```
+
+Рекомендуется запись в `~/.ssh/config`: `Host`, `HostName`, `User deploy`, `IdentityFile ~/.ssh/sweb_deploy_github2`, `IdentitiesOnly yes`.
+
+**Важно:** пользователь **`ops`** (или другой без прав на `/opt/app/.git`) может получить `Permission denied` при `git pull` — выполняйте обновление кода от **`deploy`** или через `sudo -iu deploy`.
+
+Для агентов Cursor в репозитории зафиксировано то же правило: [`.cursor/rules/sweb-ssh-deploy.mdc`](../.cursor/rules/sweb-ssh-deploy.mdc).
+
 ## 3) Configure env
 
 Краткий чеклист вывода Mini App в прод: [PRODUCTION_GO_LIVE.md](PRODUCTION_GO_LIVE.md).

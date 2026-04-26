@@ -1,0 +1,21 @@
+---
+description: SSH-доступ к прод-VPS SpaceWeb для ручного деплоя и отладки
+globs: deploy/**,docs/**,.github/**
+alwaysApply: true
+---
+
+# SWEB VPS: SSH для разработчика и агента
+
+- **Пользователь на сервере:** `deploy` (владелец `/opt/app` и `git pull` делается от него).
+- **Приватный ключ на рабочей машине:** `~/.ssh/sweb_deploy_github2` (имя файла ключа — `sweb_deploy_github2`).
+- Подключение одной строкой:
+
+  ```bash
+  ssh -i ~/.ssh/sweb_deploy_github2 deploy@<SWEB_HOST>
+  ```
+
+- В `~/.ssh/config` удобно завести `Host` (например `sweb-deploy`) с `User deploy`, `IdentityFile ~/.ssh/sweb_deploy_github2`, `IdentitiesOnly yes`.
+- **Не** полагаться на пользователя `ops` для `git pull` в `/opt/app`, если у него нет прав на `.git` — использовать `deploy` или `sudo -iu deploy`.
+- Полный сценарий деплоя и compose: [docs/SWEB_RUNBOOK.md](docs/SWEB_RUNBOOK.md).
+
+GitHub Actions по-прежнему использует секрет `SWEB_SSH_KEY` (PEM в настройках репозитория); локально для людей/агентов — ключ **`sweb_deploy_github2`**.
