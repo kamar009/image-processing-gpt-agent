@@ -151,16 +151,31 @@ def analyze_image_for_pipeline(
     cfg = _load_provider_config(provider=provider, model=model, timeout=timeout)
     if cfg.provider == "fallback":
         logger.info("VISION_PROVIDER=fallback; using heuristic fallback analysis")
-        return _fallback_analysis(image, image_type)
+        return _fallback_analysis(
+            image,
+            image_type,
+            fallback_code="software_only",
+            fallback_message="no external vision model selected",
+        )
     if cfg.provider == "sber":
         if not (cfg.api_key or cfg.auth_key):
             logger.warning(
                 "sber vision: set SBER_VISION_API_KEY or SBER_VISION_AUTH_KEY; using heuristic fallback"
             )
-            return _fallback_analysis(image, image_type)
+            return _fallback_analysis(
+                image,
+                image_type,
+                fallback_code="sber_credentials_missing",
+                fallback_message="SBER_VISION_API_KEY or SBER_VISION_AUTH_KEY is required",
+            )
     elif not cfg.api_key:
         logger.warning("%s vision key missing; using heuristic fallback", cfg.provider)
-        return _fallback_analysis(image, image_type)
+        return _fallback_analysis(
+            image,
+            image_type,
+            fallback_code=f"{cfg.provider}_credentials_missing",
+            fallback_message=f"{cfg.provider} API key is missing",
+        )
 
     try:
         if cfg.provider == "sber":
@@ -168,7 +183,20 @@ def analyze_image_for_pipeline(
         return _run_openai_compatible_vision(cfg, image=image, image_type=image_type, style=style)
     except Exception as e:
         logger.error("%s vision failed; using heuristic fallback: %s", cfg.provider, e, exc_info=True)
-        return _fallback_analysis(image, image_type)
+        fallback_code = f"{cfg.provider}_vision_failed"
+        fallback_message = str(e)
+        if cfg.provider == "sber" and isinstance(e, httpx.HTTPStatusError):
+            status = e.response.status_code if e.response is not None else None
+            req_url = str(e.request.url) if getattr(e, "request", None) else ""
+            if status == 401 and "oauth" in req_url.lower():
+                fallback_code = "sber_oauth_401"
+                fallback_message = "Sber OAuth unauthorized: check SBER_VISION_AUTH_KEY/SBER_SCOPE"
+        return _fallback_analysis(
+            image,
+            image_type,
+            fallback_code=fallback_code,
+            fallback_message=fallback_message,
+        )
 
 
 def _load_provider_config(*, provider: str | None, model: str | None, timeout: float) -> VisionProviderConfig:
@@ -409,11 +437,19 @@ def _run_openai_compatible_vision(
     raise RuntimeError(f"{cfg.provider} vision failed")
 
 
-def _fallback_analysis(image: Image.Image, image_type: ImageType) -> VisionAnalysis:
+def _fallback_analysis(
+    image: Image.Image,
+    image_type: ImageType,
+    *,
+    fallback_code: str = "",
+    fallback_message: str = "",
+) -> VisionAnalysis:
     default_safe = SafeAreaNormalized(left=0.08, top=0.1, right=0.92, bottom=0.75)
     if image_type == ImageType.banner:
         return VisionAnalysis(
             scene_description="fallback",
+            fallback_code=fallback_code,
+            fallback_message=fallback_message,
             focal_center_x=0.5,
             focal_center_y=0.45,
             safe_area=default_safe,
@@ -424,6 +460,8 @@ def _fallback_analysis(image: Image.Image, image_type: ImageType) -> VisionAnaly
     if image_type == ImageType.product:
         return VisionAnalysis(
             scene_description="fallback",
+            fallback_code=fallback_code,
+            fallback_message=fallback_message,
             focal_center_x=0.5,
             focal_center_y=0.5,
             perspective_strength="none",
@@ -433,6 +471,8 @@ def _fallback_analysis(image: Image.Image, image_type: ImageType) -> VisionAnaly
     if image_type == ImageType.portfolio_interior:
         return VisionAnalysis(
             scene_description="fallback interior",
+            fallback_code=fallback_code,
+            fallback_message=fallback_message,
             focal_center_x=0.5,
             focal_center_y=0.5,
             preserve_realistic_colors=True,
@@ -442,6 +482,8 @@ def _fallback_analysis(image: Image.Image, image_type: ImageType) -> VisionAnaly
         )
     return VisionAnalysis(
         scene_description="fallback",
+        fallback_code=fallback_code,
+        fallback_message=fallback_message,
         focal_center_x=0.5,
         focal_center_y=0.5,
         perspective_strength="none",

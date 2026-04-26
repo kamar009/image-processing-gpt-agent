@@ -31,6 +31,8 @@ class VisionAnalysis(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     scene_description: str = ""
+    fallback_code: str = ""
+    fallback_message: str = ""
     focal_center_x: float = Field(default=0.5, ge=0, le=1)
     focal_center_y: float = Field(default=0.5, ge=0, le=1)
     suggested_crop: NormalizedBox | None = None

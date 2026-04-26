@@ -209,7 +209,7 @@ def _disk_thresholds() -> tuple[float, float]:
 
 _E = TypeVar("_E", bound=Enum)
 _ALLOWED_MAX_OUTPUT_KB = {150, 200, 250, 300, 350, 400, 500}
-_ALLOWED_VISION_PROVIDERS = {"openai", "sber"}
+_ALLOWED_VISION_PROVIDERS = {"openai", "sber", "fallback"}
 _ALLOWED_SBER_MODELS = {"GigaChat-2-Max", "GigaChat-2-Pro"}
 
 
@@ -256,6 +256,10 @@ def _resolve_vision_provider_and_model(
             allowed = ", ".join(sorted(_ALLOWED_SBER_MODELS))
             raise HTTPException(status_code=422, detail=f"vision_model for sber must be one of: {allowed}")
         return provider, model
+
+    if provider == "fallback":
+        # Explicitly no external vision model: only heuristic/software analysis path.
+        return provider, None
 
     if model is None:
         model = os.environ.get("OPENAI_MODEL", "gpt-4o").strip() or "gpt-4o"
@@ -689,6 +693,8 @@ async def process_image(
         "vision_ms": vision_ms,
         "vision_provider": effective_vision_provider,
         "vision_model": effective_vision_model,
+        "vision_fallback_code": getattr(vision, "fallback_code", "") or "",
+        "vision_fallback_message": getattr(vision, "fallback_message", "") or "",
         "pipeline_wall_ms": pipeline_wall_ms,
         "vision_scene": vision.scene_description[:200],
         **result.timing_ms,

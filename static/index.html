@@ -69,7 +69,10 @@
       border-radius: 6px;
       background: repeating-conic-gradient(#e4e4e7 0% 25%, #fff 0% 50%) 50% / 16px 16px;
     }
-    .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; word-break: break-all; }
+    .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; word-break: break-word; }
+    .meta-main { color: var(--text); margin-bottom: 0.35rem; }
+    .meta-main div + div { margin-top: 0.2rem; }
+    .meta-tech { color: var(--muted); }
     .error { color: var(--err); font-size: 0.875rem; margin-top: 0.75rem; white-space: pre-wrap; }
     .ok-warn { font-size: 0.85rem; margin-top: 0.5rem; color: #a16207; }
     a.btn {
@@ -135,6 +138,7 @@
     <label for="vision_choice">Модель Vision</label>
     <select id="vision_choice" name="vision_choice">
       <option value="">По умолчанию сервера</option>
+      <option value="fallback">Без модели (только программная обработка)</option>
       <option value="sber_max">Sber GigaChat-2-Max</option>
       <option value="sber_pro">Sber GigaChat-2-Pro</option>
       <option value="openai">OpenAI</option>
@@ -198,6 +202,91 @@
   const downloadEl = document.getElementById("download");
   const validationMsg = document.getElementById("validationMsg");
   let inObjectUrl = null;
+  const typeLabels = {
+    product: "Товар",
+    category: "Категория",
+    banner: "Баннер",
+    portfolio_interior: "Интерьер (портфолио)"
+  };
+  const backgroundLabels = {
+    keep: "Сохранить исходный",
+    white: "Белый",
+    transparent: "Прозрачный",
+    clean: "Очистить фон"
+  };
+  const formatLabels = {
+    webp: "WebP",
+    jpeg: "JPEG",
+    png: "PNG"
+  };
+  const cropLabels = {
+    smart: "Умная",
+    center: "По центру"
+  };
+  const qualityLabels = {
+    high: "Высокое",
+    standard: "Стандартное"
+  };
+  const styleLabels = {
+    neutral: "Нейтральный",
+    premium: "Премиум",
+    light: "Легкий"
+  };
+  const presetDefaults = {
+    product: { maxKb: 200, background: "white", format: "webp", crop: "smart", quality: "high", style: "neutral" },
+    category: { maxKb: 250, background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" },
+    banner: { maxKb: 400, background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" },
+    portfolio_interior: { maxKb: 350, background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" }
+  };
+
+  function selectedLabel(selectId, fallback) {
+    const el = document.getElementById(selectId);
+    if (!el) return fallback || "—";
+    const idx = el.selectedIndex;
+    if (idx < 0) return fallback || "—";
+    const opt = el.options[idx];
+    if (!opt || !opt.value) return fallback || "По умолчанию";
+    return opt.textContent || fallback || "—";
+  }
+
+  function compactValue(value) {
+    return value == null || value === "" ? "—" : String(value);
+  }
+
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function toKbLabel(value) {
+    return value == null || value === "" ? "—" : String(value) + " КБ";
+  }
+
+  function effectiveByPreset(rawValue, typeValue, fallbackValue) {
+    if (rawValue) return rawValue;
+    const preset = presetDefaults[typeValue];
+    return preset && preset[fallbackValue] != null ? preset[fallbackValue] : null;
+  }
+
+  function technicalError(statusCode, message, requestId) {
+    const parts = [
+      "code: " + compactValue(statusCode),
+      "message: " + compactValue(message || "Ошибка запроса")
+    ];
+    if (requestId) parts.push("request_id: " + requestId);
+    return "Техническая информация: " + parts.join(" | ");
+  }
+
+  function showTechnicalError(message) {
+    setErr("");
+    validationMsg.hidden = true;
+    downloadEl.hidden = true;
+    outPreview.removeAttribute("src");
+    metaEl.innerHTML = '<div class="meta-tech">' + esc(message) + "</div>";
+    outCard.hidden = false;
+  }
 
   function setErr(msg) {
     errEl.textContent = msg || "";
@@ -247,6 +336,8 @@
     } else if (visionChoice === "sber_pro") {
       fd.append("vision_provider", "sber");
       fd.append("vision_model", "GigaChat-2-Pro");
+    } else if (visionChoice === "fallback") {
+      fd.append("vision_provider", "fallback");
     } else if (visionChoice === "openai") {
       fd.append("vision_provider", "openai");
     }
@@ -259,40 +350,80 @@
       try {
         data = await res.json();
       } catch (_) {
-        setErr("HTTP " + res.status + (requestId ? "\nrequest_id: " + requestId : ""));
+        showTechnicalError(technicalError(res.status, "Некорректный ответ сервера", requestId));
         return;
       }
       const detail = data && data.detail;
       if (detail && res.status >= 400 && !data.file_id) {
-        setErr(String(detail) + (data.request_id ? "\nrequest_id: " + data.request_id : requestId ? "\nrequest_id: " + requestId : ""));
+        showTechnicalError(technicalError(res.status, String(detail), data.request_id || requestId));
         return;
       }
       if (!data.file_id) {
-        setErr("Неожиданный ответ сервера." + (requestId ? "\nrequest_id: " + requestId : ""));
+        showTechnicalError(technicalError(res.status, "Неожиданный ответ сервера", requestId));
         return;
       }
       const rel = "/outputs/" + data.file_id;
       const url = data.download_url && data.download_url.startsWith("http") ? data.download_url : rel;
-      outPreview.src = rel + "?t=" + Date.now();
       const ext = (data.format || "webp").toLowerCase();
       const fname = data.file_id + "." + (ext === "jpeg" ? "jpg" : ext);
-      downloadEl.href = rel;
-      downloadEl.setAttribute("download", fname);
-      downloadEl.hidden = false;
-      metaEl.textContent =
-        "HTTP " + res.status +
-        " | " + (data.width || "?") + "×" + (data.height || "?") +
-        " | " + (data.size_kb != null ? data.size_kb + " KB" : "") +
-        " | vision " + (data.vision_ms != null ? data.vision_ms + " ms" : "—") +
-        " | всего " + (data.processing_time_ms != null ? data.processing_time_ms + " ms" : "—") +
-        (requestId || data.request_id ? " | request_id " + (data.request_id || requestId) : "");
+      const hasValidOutput = data.validation_ok !== false && Number(data.size_kb || 0) > 0;
+      if (hasValidOutput) {
+        outPreview.src = rel + "?t=" + Date.now();
+        downloadEl.href = url;
+        downloadEl.setAttribute("download", fname);
+        downloadEl.hidden = false;
+      } else {
+        outPreview.removeAttribute("src");
+        downloadEl.hidden = true;
+      }
+      const typeValue = document.getElementById("type").value;
+      const effBackground = data.background || effectiveByPreset(bg, typeValue, "background");
+      const effFormat = (data.format || effectiveByPreset(fmt, typeValue, "format") || "webp").toLowerCase();
+      const effMaxKb = data.max_output_kb != null ? data.max_output_kb : effectiveByPreset(maxOutputKb, typeValue, "maxKb");
+      const effStyle = sty || effectiveByPreset(sty, typeValue, "style");
+      const effCrop = crop || effectiveByPreset(crop, typeValue, "crop");
+      const effQuality = qual || effectiveByPreset(qual, typeValue, "quality");
+      const isNoModelFlow = visionChoice === "fallback" || data.vision_provider === "fallback";
+      const modelName = isNoModelFlow
+        ? "Без модели (программная обработка)"
+        : (data.vision_model || selectedLabel("vision_choice", "По умолчанию сервера"));
+      const providerName = data.vision_provider || (visionChoice ? "Выбран вручную" : "Сервер");
+      const resolvedRequestId = data.request_id || requestId;
+      const isVisionFallback = typeof data.vision_scene === "string" && data.vision_scene.toLowerCase().indexOf("fallback") === 0;
+      const isNoModelMode = data.vision_provider === "fallback" || visionChoice === "fallback";
+      const fallbackCode = String(data.vision_fallback_code || "").trim();
+      const fallbackMessage = String(data.vision_fallback_message || "").trim();
+      const fallbackTech = isNoModelMode
+        ? " | mode: software_only (no external vision model)"
+        : (fallbackCode
+          ? " | code: " + fallbackCode + " | message: " + (fallbackMessage || "vision provider failed, heuristic fallback used")
+          : (isVisionFallback ? " | code: vision_fallback | message: vision provider failed, heuristic fallback used" : ""));
+      metaEl.innerHTML =
+        '<div class="meta-main">' +
+          "<div><strong>Модель:</strong> " + esc(compactValue(modelName)) + " (" + esc(compactValue(providerName)) + ")</div>" +
+          "<div><strong>Параметры:</strong> тип: " + esc(typeLabels[typeValue] || typeValue) +
+          ", фон: " + esc(backgroundLabels[effBackground] || effBackground || "—") +
+          ", формат: " + esc(formatLabels[effFormat] || effFormat || "—") +
+          ", макс. размер: " + esc(toKbLabel(effMaxKb)) +
+          ", стиль: " + esc(styleLabels[effStyle] || effStyle || "—") +
+          ", обрезка: " + esc(cropLabels[effCrop] || effCrop || "—") +
+          ", качество: " + esc(qualityLabels[effQuality] || effQuality || "—") +
+          "</div>" +
+          "<div><strong>Размер изображения:</strong> " + esc((data.width || "?") + "×" + (data.height || "?")) +
+          " | <strong>Размер файла:</strong> " + esc(data.size_kb != null ? String(data.size_kb) + " KB" : "—") + "</div>" +
+        "</div>" +
+        '<div class="meta-tech">Техническая информация: vision ' + esc(data.vision_ms != null ? data.vision_ms + " ms" : "—") +
+        " | всего " + esc(data.processing_time_ms != null ? data.processing_time_ms + " ms" : "—") +
+        " | request_id " + esc(resolvedRequestId || "—") +
+        " | HTTP " + esc(res.status) +
+        esc(fallbackTech) + "</div>";
       if (data.validation_ok === false) {
         validationMsg.textContent = "validation_ok=false: " + JSON.stringify(data.validation_errors || []);
         validationMsg.hidden = false;
       }
       outCard.hidden = false;
     } catch (ex) {
-      setErr(String(ex && ex.message ? ex.message : ex));
+      showTechnicalError(technicalError("fetch_error", ex && ex.message ? ex.message : String(ex), ""));
     } finally {
       submitBtn.disabled = false;
     }
