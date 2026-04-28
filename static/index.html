@@ -74,7 +74,7 @@
     .meta-main div + div { margin-top: 0.2rem; }
     .meta-tech { color: var(--muted); }
     .error { color: var(--err); font-size: 0.875rem; margin-top: 0.75rem; white-space: pre-wrap; }
-    .ok-warn { font-size: 0.85rem; margin-top: 0.5rem; color: #a16207; }
+    .ok-warn { font-size: 0.85rem; margin-top: 0.5rem; color: #a16207; white-space: pre-wrap; }
     a.btn {
       display: inline-block;
       margin-top: 0.5rem;
@@ -83,6 +83,46 @@
       text-decoration: none;
     }
     a.btn:hover { text-decoration: underline; }
+    .field-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0 0 0.65rem;
+      line-height: 1.4;
+    }
+    .row .field-type select { margin-bottom: 0.35rem; }
+    .furniture-block {
+      border-top: 1px dashed var(--border);
+      margin: 0.75rem 0 0;
+      padding-top: 0.75rem;
+    }
+    .furniture-block label:first-of-type { margin-top: 0; }
+    .furniture-enhanced-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.88rem;
+      font-weight: 400;
+      color: var(--text);
+      margin: 0.65rem 0 0;
+      line-height: 1.45;
+    }
+    .furniture-enhanced-label .furniture-enhanced-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .furniture-enhanced-label .furniture-enhanced-lead {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+    .furniture-enhanced-label .furniture-enhanced-line {
+      display: block;
+      margin-top: 0.35rem;
+    }
+    .furniture-enhanced-label .furniture-enhanced-lead + .furniture-enhanced-line {
+      margin-top: 0;
+    }
+    .furniture-enhanced-label code { font-size: 0.8rem; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -94,14 +134,16 @@
     <input id="image" name="image" type="file" accept="image/*" required>
 
     <div class="row">
-      <div>
+      <div class="field-type">
         <label for="type">Тип изображения</label>
-        <select id="type" name="type" required>
-          <option value="product">Товар</option>
-          <option value="category">Категория</option>
-          <option value="banner">Баннер</option>
-          <option value="portfolio_interior">Интерьер (портфолио)</option>
+        <select id="type" name="type" required aria-describedby="typeHint">
+          <option value="product" title="Карточка одного товара в каталоге: квадратное превью, акцент на объекте.">Товар</option>
+          <option value="category" title="Обложка раздела или плитка категории: широкий кадр, передаёт тему раздела.">Категория</option>
+          <option value="banner" title="Промо-полоса на сайте: широкий формат, учитывается запас места под текст.">Баннер</option>
+          <option value="portfolio_interior" title="Интерьер для портфолио: естественные цвета, архитектура и обстановка.">Интерьер (портфолио)</option>
+          <option value="furniture_portfolio" title="Установленная офисная мебель на объекте: выбор помещения и формата под сайт или соцсети.">Мебель (портфолио)</option>
         </select>
+        <p id="typeHint" class="field-hint" role="status"></p>
       </div>
       <div>
         <label for="background">Фон</label>
@@ -113,6 +155,38 @@
           <option value="clean">Очистить фон</option>
         </select>
       </div>
+    </div>
+
+    <div id="furnitureBlock" class="furniture-block" hidden>
+      <label for="furniture_scene">Помещение (сцена)</label>
+      <select id="furniture_scene" name="furniture_scene" aria-describedby="furnitureBlockHint">
+        <option value="executive_office">Кабинет руководителя</option>
+        <option value="meeting_room">Переговорная</option>
+        <option value="reception_waiting">Ресепшен и зона ожидания</option>
+        <option value="open_workspace">Рабочие места (open space)</option>
+        <option value="retail_counters">Торговое оборудование (прилавки, буфеты)</option>
+        <option value="archive_library">Архивы и библиотеки</option>
+        <option value="lounge">Комната отдыха</option>
+      </select>
+      <label for="output_target">Куда публикуем</label>
+      <select id="output_target" name="output_target">
+        <option value="site">Сайт, портфолио (1600×900)</option>
+        <option value="banner">Баннер на сайте (1920×900)</option>
+        <option value="social_vk">ВКонтакте (1080×1080)</option>
+        <option value="social_telegram">Telegram, 16:9 (1280×720)</option>
+        <option value="social_max">MAX, вертикаль (1080×1350)</option>
+      </select>
+      <label class="furniture-enhanced-label" for="furniture_enhanced">
+        <input type="checkbox" id="furniture_enhanced" name="enhanced" value="true" style="width:auto;margin:0.15rem 0 0 0;flex-shrink:0;">
+        <span class="furniture-enhanced-text">
+          <span class="furniture-enhanced-lead">Усиленная обработка</span>
+          <span class="furniture-enhanced-line">Сильнее шумоподавление и резкость — только программные шаги, без «магической» ретуши.</span>
+          <span class="furniture-enhanced-line">Людей из кадра не удаляем.</span>
+        </span>
+      </label>
+      <p id="furnitureBlockHint" class="field-hint" role="note">
+        Нужен исходник с длинной стороной не меньше 1200 px (с учётом ориентации с телефона).
+      </p>
     </div>
 
     <label for="format">Формат файла</label>
@@ -132,6 +206,7 @@
       <option value="300">300 КБ</option>
       <option value="350">350 КБ</option>
       <option value="400">400 КБ</option>
+      <option value="450">450 КБ</option>
       <option value="500">500 КБ</option>
     </select>
 
@@ -206,7 +281,24 @@
     product: "Товар",
     category: "Категория",
     banner: "Баннер",
-    portfolio_interior: "Интерьер (портфолио)"
+    portfolio_interior: "Интерьер (портфолио)",
+    furniture_portfolio: "Мебель (портфолио)"
+  };
+  const furnitureSceneLabels = {
+    executive_office: "Кабинет руководителя",
+    meeting_room: "Переговорная",
+    reception_waiting: "Ресепшен и ожидание",
+    open_workspace: "Рабочие места",
+    retail_counters: "Торговое оборудование",
+    archive_library: "Архивы и библиотеки",
+    lounge: "Комната отдыха"
+  };
+  const outputTargetLabels = {
+    site: "Сайт (портфолио)",
+    banner: "Баннер сайта",
+    social_vk: "ВКонтакте",
+    social_telegram: "Telegram",
+    social_max: "MAX"
   };
   const backgroundLabels = {
     keep: "Сохранить исходный",
@@ -236,7 +328,20 @@
     product: { maxKb: 200, background: "white", format: "webp", crop: "smart", quality: "high", style: "neutral" },
     category: { maxKb: 250, background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" },
     banner: { maxKb: 400, background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" },
-    portfolio_interior: { maxKb: 350, background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" }
+    portfolio_interior: { maxKb: 350, background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" },
+    furniture_portfolio: { maxKb: "", background: "keep", format: "webp", crop: "smart", quality: "high", style: "neutral" }
+  };
+  const typeUserHints = {
+    product:
+      "Товар — фото одной позиции для карточки в каталоге: обычно квадрат, главный объект по центру.",
+    category:
+      "Категория — картинка для обложки раздела или плитки категории: шире кадр, передаёт суть раздела.",
+    banner:
+      "Баннер — широкий промо-кадр для главной или акций; система оставляет место под заголовок и текст.",
+    portfolio_interior:
+      "Интерьер — работы для портфолио: комнаты, планировки; сохраняются реалистичные цвета и линии.",
+    furniture_portfolio:
+      "Мебель на объекте — фото после монтажа для сайта или соцсетей. Укажите помещение и формат публикации; исходник снимайте крупным планом."
   };
 
   function selectedLabel(selectId, fallback) {
@@ -267,7 +372,8 @@
   function effectiveByPreset(rawValue, typeValue, fallbackValue) {
     if (rawValue) return rawValue;
     const preset = presetDefaults[typeValue];
-    return preset && preset[fallbackValue] != null ? preset[fallbackValue] : null;
+    if (!preset || preset[fallbackValue] == null || preset[fallbackValue] === "") return null;
+    return preset[fallbackValue];
   }
 
   function technicalError(statusCode, message, requestId) {
@@ -293,6 +399,28 @@
     errEl.hidden = !msg;
   }
 
+  const typeSelect = document.getElementById("type");
+  const typeHintEl = document.getElementById("typeHint");
+  const furnitureBlock = document.getElementById("furnitureBlock");
+  const furnitureSceneEl = document.getElementById("furniture_scene");
+  const outputTargetEl = document.getElementById("output_target");
+  function syncTypeHint() {
+    if (!typeHintEl || !typeSelect) return;
+    const v = typeSelect.value;
+    typeHintEl.textContent = typeUserHints[v] || "";
+  }
+  function syncFurnitureBlock() {
+    if (!furnitureBlock || !typeSelect) return;
+    const isFurniture = typeSelect.value === "furniture_portfolio";
+    furnitureBlock.hidden = !isFurniture;
+  }
+  typeSelect.addEventListener("change", function () {
+    syncTypeHint();
+    syncFurnitureBlock();
+  });
+  syncTypeHint();
+  syncFurnitureBlock();
+
   imageInput.addEventListener("change", function () {
     if (inObjectUrl) URL.revokeObjectURL(inObjectUrl);
     inObjectUrl = null;
@@ -314,9 +442,22 @@
       setErr("Выберите файл.");
       return;
     }
+    const typeValue = document.getElementById("type").value;
+    if (typeValue === "furniture_portfolio") {
+      const fs = furnitureSceneEl && furnitureSceneEl.value;
+      const ot = outputTargetEl && outputTargetEl.value;
+      if (!fs || !ot) {
+        setErr("Выберите помещение и формат публикации для «Мебель (портфолио)».");
+        return;
+      }
+    }
     const fd = new FormData();
     fd.append("image", file);
-    fd.append("type", document.getElementById("type").value);
+    fd.append("type", typeValue);
+    if (typeValue === "furniture_portfolio") {
+      fd.append("furniture_scene", furnitureSceneEl.value);
+      fd.append("output_target", outputTargetEl.value);
+    }
     const bg = document.getElementById("background").value;
     if (bg) fd.append("background", bg);
     const fmt = document.getElementById("format").value;
@@ -376,7 +517,6 @@
         outPreview.removeAttribute("src");
         downloadEl.hidden = true;
       }
-      const typeValue = document.getElementById("type").value;
       const effBackground = data.background || effectiveByPreset(bg, typeValue, "background");
       const effFormat = (data.format || effectiveByPreset(fmt, typeValue, "format") || "webp").toLowerCase();
       const effMaxKb = data.max_output_kb != null ? data.max_output_kb : effectiveByPreset(maxOutputKb, typeValue, "maxKb");
@@ -398,6 +538,16 @@
         : (fallbackCode
           ? " | code: " + fallbackCode + " | message: " + (fallbackMessage || "vision provider failed, heuristic fallback used")
           : (isVisionFallback ? " | code: vision_fallback | message: vision provider failed, heuristic fallback used" : ""));
+      let furnitureExtra = "";
+      if (typeValue === "furniture_portfolio") {
+        const fs = data.furniture_scene || (furnitureSceneEl && furnitureSceneEl.value) || "";
+        const ot = data.output_target || (outputTargetEl && outputTargetEl.value) || "";
+        const pd = data.people_detected === true ? "да" : data.people_detected === false ? "нет" : "—";
+        furnitureExtra =
+          "<br><strong>Портфолио мебели:</strong> помещение: " + esc(furnitureSceneLabels[fs] || fs || "—") +
+          ", публикация: " + esc(outputTargetLabels[ot] || ot || "—") +
+          ", люди в кадре (оценка): " + esc(pd);
+      }
       metaEl.innerHTML =
         '<div class="meta-main">' +
           "<div><strong>Модель:</strong> " + esc(compactValue(modelName)) + " (" + esc(compactValue(providerName)) + ")</div>" +
@@ -408,6 +558,7 @@
           ", стиль: " + esc(styleLabels[effStyle] || effStyle || "—") +
           ", обрезка: " + esc(cropLabels[effCrop] || effCrop || "—") +
           ", качество: " + esc(qualityLabels[effQuality] || effQuality || "—") +
+          furnitureExtra +
           "</div>" +
           "<div><strong>Размер изображения:</strong> " + esc((data.width || "?") + "×" + (data.height || "?")) +
           " | <strong>Размер файла:</strong> " + esc(data.size_kb != null ? String(data.size_kb) + " KB" : "—") + "</div>" +
@@ -417,9 +568,18 @@
         " | request_id " + esc(resolvedRequestId || "—") +
         " | HTTP " + esc(res.status) +
         esc(fallbackTech) + "</div>";
-      if (data.validation_ok === false) {
-        validationMsg.textContent = "validation_ok=false: " + JSON.stringify(data.validation_errors || []);
+      const valErrors = data.validation_errors || [];
+      const valWarnings = data.validation_warnings || [];
+      if (valErrors.length) {
+        validationMsg.className = "error";
+        validationMsg.textContent = "Ошибки проверки: " + valErrors.join("; ");
         validationMsg.hidden = false;
+      } else if (valWarnings.length) {
+        validationMsg.className = "ok-warn";
+        validationMsg.textContent = "Предупреждения:\n" + valWarnings.join("\n");
+        validationMsg.hidden = false;
+      } else {
+        validationMsg.hidden = true;
       }
       outCard.hidden = false;
     } catch (ex) {

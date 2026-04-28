@@ -1,6 +1,6 @@
 # Site image processing MVP
 
-Сервис принимает изображение, опционально вызывает **OpenAI Vision**, прогоняет пресеты (`product`, `category`, `banner`, `portfolio_interior`) и отдает WebP/JPEG/PNG под лимиты сайта.
+Сервис принимает изображение, опционально вызывает внешний **Vision** (OpenAI, Sber, Yandex и др.), прогоняет пресеты (`product`, `category`, `banner`, `portfolio_interior`, `furniture_portfolio`) и отдаёт WebP/JPEG/PNG под лимиты сайта. Тип **`furniture_portfolio`** — сценарий «мебель на объекте → портфолио / соцсети»; контракт и поля: [docs/FURNITURE_PORTFOLIO_API.md](docs/FURNITURE_PORTFOLIO_API.md).
 
 ## Быстрый запуск
 
@@ -92,6 +92,8 @@ Telegram Mini App (статика): после деплоя откройте **`
 - `bootstrap-vps.sh`
 - `issue-cert.sh`
 
+**Этап 2 (самый простой прод-путь):** только публичная цепочка «загрузка → обработка → скачивание» на SpaceWeb — [docs/STAGE2_SPACEWEB_PUBLIC.md](docs/STAGE2_SPACEWEB_PUBLIC.md).
+
 Пошаговый runbook и описание веток **dev/main**, CI и секретов деплоя: [docs/SWEB_RUNBOOK.md](docs/SWEB_RUNBOOK.md).
 Supabase SQL схема и RLS политики: `deploy/supabase/schema.sql`, `deploy/supabase/rls.sql`.
 
@@ -129,6 +131,7 @@ Supabase SQL схема и RLS политики: `deploy/supabase/schema.sql`, `
 - `category`: `1200x800`, до `250 KB`
 - `banner`: `1920x900`, до `400 KB`
 - `portfolio_interior`: `1600x900`, до `350 KB`
+- `furniture_portfolio`: размер выхода задаётся полем `output_target` (например `site` → `1600x900`, см. §4 в [FURNITURE_PORTFOLIO_API.md](docs/FURNITURE_PORTFOLIO_API.md)); вход должен удовлетворять минимальному разрешению из спеки
 
 Если входной файл больше `MAX_UPLOAD_MB`, ожидается `413`.
 
@@ -157,6 +160,8 @@ python scripts/check_disk_space.py --path outputs --warn-usage-pct 85 --critical
 
 ```bash
 python scripts/integration_smoke.py --image "path/to/image.png" --strict
+# вместе с furniture_portfolio (синтетический вход с длинной стороной 1200 px + fallback vision):
+python scripts/integration_smoke.py --image "path/to/image.png" --strict --include-furniture
 ```
 
 ## Batch QA

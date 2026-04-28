@@ -20,7 +20,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
-from PIL import Image
+from PIL import Image, ImageOps
 
 from gpt_agent.analyze import analyze_image_for_pipeline
 from internal.auth import verify_telegram_init_data
@@ -32,6 +32,9 @@ from output_storage.local import OutputStorage
 from presets.definitions import (
     BackgroundMode,
     CropMode,
+    FURNITURE_PORTFOLIO_MIN_INPUT_LONG_SIDE_PX,
+    FurniturePortfolioOutputTarget,
+    FurnitureScene,
     ImageType,
     OutputFormat,
     QualityLevel,
@@ -44,7 +47,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-_APP_DESC = """Подготовка изображений для сайта: Vision (OpenAI) + пресеты product | category | banner | portfolio_interior.
+_APP_DESC = """Подготовка изображений для сайта: Vision (OpenAI) + пресеты product | category | banner | portfolio_interior | furniture_portfolio (нужны furniture_scene и output_target; см. docs/FURNITURE_PORTFOLIO_API.md).
 
 **Пример curl (хост и путь к файлу подставьте свои):**
 ```bash
@@ -208,7 +211,7 @@ def _disk_thresholds() -> tuple[float, float]:
 
 
 _E = TypeVar("_E", bound=Enum)
-_ALLOWED_MAX_OUTPUT_KB = {150, 200, 250, 300, 350, 400, 500}
+_ALLOWED_MAX_OUTPUT_KB = {150, 200, 250, 300, 350, 400, 450, 500}
 _ALLOWED_VISION_PROVIDERS = {"openai", "sber", "fallback"}
 _ALLOWED_SBER_MODELS = {"GigaChat-2-Max", "GigaChat-2-Pro"}
 
@@ -223,6 +226,30 @@ def _parse_enum(raw: str | None, cls: type[_E], default: _E) -> _E:
             return cls[raw]
         except Exception:
             raise HTTPException(status_code=400, detail=f"invalid value for {cls.__name__}: {raw}") from None
+
+
+def _parse_enhanced_flag(raw: str | None) -> bool:
+    """FURNITURE_PORTFOLIO_API §2: on only for 1, true, on (case-insensitive)."""
+    if raw is None or str(raw).strip() == "":
+        return False
+    return str(raw).strip().lower() in ("1", "true", "on")
+
+
+def _parse_furniture_enum_or_422(raw: str | None, *, cls: type[_E], field_label: str) -> _E:
+    if raw is None or str(raw).strip() == "":
+        raise HTTPException(
+            status_code=422,
+            detail=f"{field_label} is required when type=furniture_portfolio",
+        )
+    key = str(raw).strip()
+    try:
+        return cls(key)
+    except ValueError:
+        allowed = ", ".join(sorted(e.value for e in cls))
+        raise HTTPException(
+            status_code=422,
+            detail=f"invalid {field_label}: {key!r}; expected one of: {allowed}",
+        ) from None
 
 
 def _parse_max_output_kb(raw: str | None, default_kb: int) -> int:
@@ -586,13 +613,32 @@ async def process_image(
     max_output_kb: Annotated[str | None, Form()] = None,
     vision_provider: Annotated[str | None, Form()] = None,
     vision_model: Annotated[str | None, Form()] = None,
+    furniture_scene: Annotated[str | None, Form()] = None,
+    output_target: Annotated[str | None, Form()] = None,
+    enhanced: Annotated[str | None, Form()] = None,
 ):
     try:
         image_type = ImageType(type)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"invalid type: {type}") from e
 
-    preset = get_preset(image_type)
+    furniture_scene_e: FurnitureScene | None = None
+    furniture_output_target_e: FurniturePortfolioOutputTarget | None = None
+    enhanced_requested = _parse_enhanced_flag(enhanced)
+
+    if image_type == ImageType.furniture_portfolio:
+        furniture_scene_e = _parse_furniture_enum_or_422(
+            furniture_scene, cls=FurnitureScene, field_label="furniture_scene"
+        )
+        furniture_output_target_e = _parse_furniture_enum_or_422(
+            output_target, cls=FurniturePortfolioOutputTarget, field_label="output_target"
+        )
+        preset = get_preset(
+            image_type,
+            furniture_output_target=furniture_output_target_e,
+        )
+    else:
+        preset = get_preset(image_type)
     bg_mode = _parse_enum(background, BackgroundMode, preset.default_background)
     out_fmt = _parse_enum(output_format, OutputFormat, preset.default_format)
     sty = _parse_enum(style, StylePreset, StylePreset.neutral)
@@ -616,6 +662,19 @@ async def process_image(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"cannot decode image: {e}") from e
 
+    if image_type == ImageType.furniture_portfolio:
+        pil = ImageOps.exif_transpose(pil)
+        iw, ih = pil.size
+        long_side = max(iw, ih)
+        if long_side < FURNITURE_PORTFOLIO_MIN_INPUT_LONG_SIDE_PX:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"input image longest side is {long_side}px after EXIF orientation; "
+                    f"furniture_portfolio requires at least {FURNITURE_PORTFOLIO_MIN_INPUT_LONG_SIDE_PX}px"
+                ),
+            )
+
     t_all = time.perf_counter()
     try:
         vision = analyze_image_for_pipeline(
@@ -624,6 +683,9 @@ async def process_image(
             sty,
             provider=effective_vision_provider,
             model=effective_vision_model,
+            furniture_enhanced=(
+                image_type == ImageType.furniture_portfolio and enhanced_requested
+            ),
         )
     except Exception as e:
         logger.exception(
@@ -638,6 +700,9 @@ async def process_image(
     t_after_vision = time.perf_counter()
     pil_for_pipe = pil.copy()
 
+    furniture_enhanced_run = (
+        image_type == ImageType.furniture_portfolio and enhanced_requested
+    )
     try:
         result = run_pipeline(
             pil_for_pipe,
@@ -650,6 +715,7 @@ async def process_image(
             vision,
             preset,
             max_output_kb=effective_max_output_kb,
+            furniture_enhanced=furniture_enhanced_run,
         )
     except Exception as e:
         logger.exception("pipeline failed")
@@ -672,10 +738,23 @@ async def process_image(
     out_path.write_bytes(result.data)
 
     v = validate_output(out_path, preset, out_fmt, effective_max_output_kb)
+    response_warnings = list(v.warnings)
+    if image_type == ImageType.furniture_portfolio and vision.people_detected:
+        response_warnings.append(
+            "В кадре видны люди (оценка Vision); проверьте кадр перед публикацией."
+        )
+    if (
+        image_type == ImageType.furniture_portfolio
+        and enhanced_requested
+        and vision.people_detected
+    ):
+        response_warnings.append(
+            "Усиленный режим не удаляет людей автоматически — при необходимости обработайте кадр вручную."
+        )
     base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
     download_url = f"{base}/outputs/{file_id}" if base else f"/outputs/{file_id}"
 
-    body = {
+    body: dict[str, object] = {
         "file_id": file_id,
         "download_url": download_url,
         "type": image_type.value,
@@ -688,7 +767,7 @@ async def process_image(
         "operations": result.operations,
         "validation_ok": v.ok,
         "validation_errors": v.errors,
-        "validation_warnings": v.warnings,
+        "validation_warnings": response_warnings,
         "processing_time_ms": elapsed_ms,
         "vision_ms": vision_ms,
         "vision_provider": effective_vision_provider,
@@ -699,6 +778,13 @@ async def process_image(
         "vision_scene": vision.scene_description[:200],
         **result.timing_ms,
     }
+    if image_type == ImageType.furniture_portfolio:
+        assert furniture_scene_e is not None and furniture_output_target_e is not None
+        body["furniture_scene"] = furniture_scene_e.value
+        body["output_target"] = furniture_output_target_e.value
+        body["enhanced_requested"] = enhanced_requested
+        body["enhanced_applied"] = bool(enhanced_requested)
+        body["people_detected"] = vision.people_detected
     rid = getattr(request.state, "request_id", None)
     logger.info(
         "process_image_done request_id=%s file_id=%s type=%s vision_ms=%s pipeline_wall_ms=%s "

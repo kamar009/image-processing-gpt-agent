@@ -24,6 +24,7 @@ def test_process_image_product_keep(mock_vision):
     assert r.status_code == 200, r.text
     data = r.json()
     assert data["type"] == "product"
+    assert "people_detected" not in data
     assert data["width"] == 800 and data["height"] == 800
     assert data["validation_ok"] is True
     assert data["max_output_kb"] == 200

@@ -107,7 +107,74 @@ def _json_dict_from_llm_text(text: str) -> dict:
     return parsed
 
 
-def _build_system_prompt(image_type: ImageType, style: StylePreset) -> str:
+# При furniture_portfolio + enhanced: цели анализа для пайплайна (модель не генерирует пиксели).
+_FURNITURE_PORTFOLIO_ENHANCED_VISION_GOALS_RU = """Ты — профессиональный ретушёр интерьерной и мебельной съёмки для корпоративного портфолио производителя офисной мебели.
+Исходник: фото собранной мебели на объекте, снятое на телефон монтажником. Возможны: шум, смаз, перекосы перспективы, неровный свет, цветовой сдвиг, низкое разрешение, а также лишние предметы (инструменты, упаковка, лестницы, ведра, кабели, посторонняя мебель/мусор), отражения в стекле/глянце, люди в кадре.
+Задача: привести изображение к виду «готово к публикации в портфолио на сайте», максимально правдоподобно, без «AI-артефактов» и без изменения конструкции мебели.
+Обязательно:
+1) Сохранить геометрию и пропорции изделия: не менять форму модулей, фурнитуру, цвет ЛДСП/шпона/лака относительно реальности; не «дорисовывать» несуществующие элементы.
+2) Убрать или аккуратно заменить отвлекающие объекты: инструменты, упаковку, лестницы, мусор, временные предметы; если удаление невозможно без правды — минимизировать внимание (кроп/локальная коррекция), не выдумывая фантастический фон.
+3) Отражения: убрать посторонние отражения (люди, хаос), сохранив естественность стекла/глянца; не делать стекло «матовым пятном».
+4) Перспектива и кадрирование: слегка выровнять вертикали (умеренно), без сильного «ломания» пространства; при необходимости аккуратный кроп с фокусом на мебель.
+5) Свет и цвет: нейтрализовать жёлтый/зелёный от ламп, выровнять экспозицию локально; сохранить реалистичные материалы (дерево/лак/металл/ткань) без перенасыщения.
+6) Резкость и шум: умеренная шумодавка + микроконтраст так, чтобы текстуры читались, но не было «пластика».
+7) Фон: если фон объектный (офис), сделать аккуратно и «презентабельно»: не стерильный CGI, а реальный интерьер без бардака. Если фон сильно портит — допустим мягкий боке/лёгкое затемнение периферии, но без подмены всей сцены на вымышленную.
+Запрещено:
+- менять модель мебели, количество секций, цвет как «другой заказ»;
+- добавлять логотипы/водяные знаки;
+- превращать фото в иллюстрацию/3D-рендер;
+- сильно обрезать изделие так, что оно перестаёт читаться целиком (если это не композиционный детальный кадр).
+Выход: одно финальное изображение в стиле корпоративного портфолио: чисто, спокойно, правдоподобно, готово к вебу."""
+
+
+def _furniture_portfolio_system_prompt(
+    style: StylePreset, *, furniture_enhanced: bool = False
+) -> str:
+    """B1: dedicated vision instructions for installed office furniture on site (FURNITURE_PORTFOLIO_API)."""
+    core = f"""You analyze photos of installed office furniture on real customer sites for automated web and social publishing.
+Style hint: {style.value}.
+
+Respond ONLY with JSON matching this exact shape (no markdown):
+{{
+  "scene_description": string,
+  "focal_center_x": number 0-1,
+  "focal_center_y": number 0-1,
+  "suggested_crop": null or {{"x":0-1,"y":0-1,"width":0-1,"height":0-1}},
+  "safe_area": null or {{"left":0-1,"top":0-1,"right":0-1,"bottom":0-1}},
+  "preserve_realistic_colors": boolean,
+  "avoid_heavy_saturation": boolean,
+  "vertical_lines_need_correction": boolean,
+  "perspective_strength": "none"|"light"|"moderate",
+  "notes_for_crop": string,
+  "content_tight_box": null or {{"x","y","width","height"}} in 0-1,
+  "people_detected": boolean
+}}
+
+Rules:
+- Subject is installed office furniture on location; keep the scene truthful (real background, no fictional interiors).
+- Do not suggest changing furniture color, hardware, or module/cabinet geometry.
+- preserve_realistic_colors=true, avoid_heavy_saturation=true, perspective_strength usually light; do not suggest removing architecture.
+- focal_center on the primary furniture or strongest composition read; crop may clip part of the furniture if needed.
+- people_detected: true if one or more clearly visible people (or obvious human figures) appear; false if none or uncertain.
+"""
+    if not furniture_enhanced:
+        return core
+    return (
+        "Ты выполняешь визуальный анализ кадра для серверной подготовки к публикации. "
+        "Итоговый файл пикселей создаёт пайплайн, не ты; твой ответ — только JSON ниже (без markdown).\n"
+        "Учитывай следующие продуктовые цели усиленной обработки в scene_description, notes_for_crop, "
+        "suggested_crop, safe_area и остальных полях JSON.\n\n"
+        f"{_FURNITURE_PORTFOLIO_ENHANCED_VISION_GOALS_RU}\n\n---\n\n"
+        f"{core}"
+    )
+
+
+def _build_system_prompt(
+    image_type: ImageType, style: StylePreset, *, furniture_enhanced: bool = False
+) -> str:
+    if image_type == ImageType.furniture_portfolio:
+        return _furniture_portfolio_system_prompt(style, furniture_enhanced=furniture_enhanced)
+
     base = f"""You analyze images for automated web publishing. Image use case: {image_type.value}.
 Style hint: {style.value}.
 
@@ -147,6 +214,7 @@ def analyze_image_for_pipeline(
     provider: str | None = None,
     model: str | None = None,
     timeout: float = 60.0,
+    furniture_enhanced: bool = False,
 ) -> VisionAnalysis:
     cfg = _load_provider_config(provider=provider, model=model, timeout=timeout)
     if cfg.provider == "fallback":
@@ -179,8 +247,20 @@ def analyze_image_for_pipeline(
 
     try:
         if cfg.provider == "sber":
-            return _run_sber_vision(cfg, image=image, image_type=image_type, style=style)
-        return _run_openai_compatible_vision(cfg, image=image, image_type=image_type, style=style)
+            return _run_sber_vision(
+                cfg,
+                image=image,
+                image_type=image_type,
+                style=style,
+                furniture_enhanced=furniture_enhanced,
+            )
+        return _run_openai_compatible_vision(
+            cfg,
+            image=image,
+            image_type=image_type,
+            style=style,
+            furniture_enhanced=furniture_enhanced,
+        )
     except Exception as e:
         logger.error("%s vision failed; using heuristic fallback: %s", cfg.provider, e, exc_info=True)
         fallback_code = f"{cfg.provider}_vision_failed"
@@ -299,6 +379,7 @@ def _run_sber_vision(
     image: Image.Image,
     image_type: ImageType,
     style: StylePreset,
+    furniture_enhanced: bool = False,
 ) -> VisionAnalysis:
     token = _resolve_sber_access_token(cfg)
     if not cfg.base_url:
@@ -307,7 +388,7 @@ def _run_sber_vision(
     base_url = cfg.base_url.rstrip("/")
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     payload_text = (
-        _build_system_prompt(image_type, style)
+        _build_system_prompt(image_type, style, furniture_enhanced=furniture_enhanced)
         + "\n\nAnalyze the attached image and output JSON only."
     )
     img_bytes = _image_to_jpeg_bytes(image)
@@ -380,6 +461,7 @@ def _run_openai_compatible_vision(
     image: Image.Image,
     image_type: ImageType,
     style: StylePreset,
+    furniture_enhanced: bool = False,
 ) -> VisionAnalysis:
     # SDK: if base_url is omitted/None it reads OPENAI_BASE_URL from env; an empty
     # string there becomes the client base URL and httpx fails (UnsupportedProtocol),
@@ -390,7 +472,7 @@ def _run_openai_compatible_vision(
         openai_base = cfg.base_url or "https://api.openai.com/v1"
     client = OpenAI(api_key=cfg.api_key, base_url=openai_base, timeout=cfg.timeout)
     b64 = _image_to_base64_png(image)
-    system = _build_system_prompt(image_type, style)
+    system = _build_system_prompt(image_type, style, furniture_enhanced=furniture_enhanced)
     user_content = [
         {"type": "text", "text": "Analyze this image and output the JSON object only."},
         {
@@ -467,6 +549,19 @@ def _fallback_analysis(
             perspective_strength="none",
             preserve_realistic_colors=True,
             content_tight_box=None,
+        )
+    if image_type == ImageType.furniture_portfolio:
+        return VisionAnalysis(
+            scene_description="fallback interior",
+            fallback_code=fallback_code,
+            fallback_message=fallback_message,
+            focal_center_x=0.5,
+            focal_center_y=0.5,
+            preserve_realistic_colors=True,
+            avoid_heavy_saturation=True,
+            vertical_lines_need_correction=True,
+            perspective_strength="light",
+            people_detected=False,
         )
     if image_type == ImageType.portfolio_interior:
         return VisionAnalysis(

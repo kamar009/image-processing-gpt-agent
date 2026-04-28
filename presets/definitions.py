@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
 
 
 class ImageType(str, Enum):
@@ -10,6 +9,33 @@ class ImageType(str, Enum):
     category = "category"
     banner = "banner"
     portfolio_interior = "portfolio_interior"
+    furniture_portfolio = "furniture_portfolio"
+
+
+class FurnitureScene(str, Enum):
+    """§3 FURNITURE_PORTFOLIO_API — подтип помещения (валидация формы — шаг A3)."""
+
+    executive_office = "executive_office"
+    meeting_room = "meeting_room"
+    reception_waiting = "reception_waiting"
+    open_workspace = "open_workspace"
+    retail_counters = "retail_counters"
+    archive_library = "archive_library"
+    lounge = "lounge"
+
+
+class FurniturePortfolioOutputTarget(str, Enum):
+    """§4 FURNITURE_PORTFOLIO_API — цель вывода (не путать с ImageType.banner)."""
+
+    site = "site"
+    banner = "banner"  # баннер на сайте по §4, не пресет product/category/banner
+    social_vk = "social_vk"
+    social_telegram = "social_telegram"
+    social_max = "social_max"
+
+
+# §9 FURNITURE_PORTFOLIO_API — минимальная длинная сторона входа (px) после EXIF; шаг A4.
+FURNITURE_PORTFOLIO_MIN_INPUT_LONG_SIDE_PX = 1200
 
 
 class BackgroundMode(str, Enum):
@@ -68,7 +94,7 @@ _PRESETS: dict[ImageType, PresetConfig] = {
     ImageType.product: PresetConfig(
         width=800,
         height=800,
-        max_kb=150,
+        max_kb=200,
         default_background=BackgroundMode.white,
         default_format=OutputFormat.webp,
         default_crop=CropMode.smart,
@@ -104,6 +130,69 @@ _PRESETS: dict[ImageType, PresetConfig] = {
     ),
 }
 
+_FP_DEFAULT_BG = BackgroundMode.keep
+_FP_DEFAULT_FMT = OutputFormat.webp
+_FP_DEFAULT_CROP = CropMode.smart
+_FP_DEFAULT_QUALITY = QualityLevel.high
 
-def get_preset(image_type: ImageType) -> PresetConfig:
+_FURNITURE_PORTFOLIO_PRESETS: dict[FurniturePortfolioOutputTarget, PresetConfig] = {
+    FurniturePortfolioOutputTarget.site: PresetConfig(
+        width=1600,
+        height=900,
+        max_kb=400,
+        default_background=_FP_DEFAULT_BG,
+        default_format=_FP_DEFAULT_FMT,
+        default_crop=_FP_DEFAULT_CROP,
+        default_quality=_FP_DEFAULT_QUALITY,
+    ),
+    FurniturePortfolioOutputTarget.banner: PresetConfig(
+        width=1920,
+        height=900,
+        max_kb=450,
+        default_background=_FP_DEFAULT_BG,
+        default_format=_FP_DEFAULT_FMT,
+        default_crop=_FP_DEFAULT_CROP,
+        default_quality=_FP_DEFAULT_QUALITY,
+    ),
+    FurniturePortfolioOutputTarget.social_vk: PresetConfig(
+        width=1080,
+        height=1080,
+        max_kb=350,
+        default_background=_FP_DEFAULT_BG,
+        default_format=_FP_DEFAULT_FMT,
+        default_crop=_FP_DEFAULT_CROP,
+        default_quality=_FP_DEFAULT_QUALITY,
+    ),
+    FurniturePortfolioOutputTarget.social_telegram: PresetConfig(
+        width=1280,
+        height=720,
+        max_kb=300,
+        default_background=_FP_DEFAULT_BG,
+        default_format=_FP_DEFAULT_FMT,
+        default_crop=_FP_DEFAULT_CROP,
+        default_quality=_FP_DEFAULT_QUALITY,
+    ),
+    FurniturePortfolioOutputTarget.social_max: PresetConfig(
+        width=1080,
+        height=1350,
+        max_kb=350,
+        default_background=_FP_DEFAULT_BG,
+        default_format=_FP_DEFAULT_FMT,
+        default_crop=_FP_DEFAULT_CROP,
+        default_quality=_FP_DEFAULT_QUALITY,
+    ),
+}
+
+
+def get_preset(
+    image_type: ImageType,
+    *,
+    furniture_output_target: FurniturePortfolioOutputTarget | None = None,
+) -> PresetConfig:
+    if image_type == ImageType.furniture_portfolio:
+        if furniture_output_target is None:
+            raise ValueError("furniture_output_target is required for image_type=furniture_portfolio")
+        return _FURNITURE_PORTFOLIO_PRESETS[furniture_output_target]
+    if furniture_output_target is not None:
+        raise ValueError("furniture_output_target is only valid for image_type=furniture_portfolio")
     return _PRESETS[image_type]

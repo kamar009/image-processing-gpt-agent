@@ -105,6 +105,8 @@ def run_pipeline(
     preset: PresetConfig,
     max_output_kb: int | None = None,
     deadline: float | None = None,
+    *,
+    furniture_enhanced: bool = False,
 ) -> ProcessResult:
     if deadline is None:
         deadline = _deadline_from_env()
@@ -218,14 +220,19 @@ def run_pipeline(
         working = ops.cinematic_banner(working)
         ops_list.append("cinematic_tone")
 
-    elif image_type == ImageType.portfolio_interior:
+    elif image_type in (ImageType.portfolio_interior, ImageType.furniture_portfolio):
         ops_list.append("analyze_preset_portfolio")
         _tag_vision_suggested()
         working = working.convert("RGB")
+        furniture_soft_enhance = (
+            image_type == ImageType.furniture_portfolio and furniture_enhanced
+        )
         if vision.vertical_lines_need_correction:
             working = ops.slight_rotation_fix(working, max_deg=1.1)
             ops_list.append("vertical_alignment_light")
         h_pf = 5 if quality_level == QualityLevel.high else 4
+        if furniture_soft_enhance:
+            h_pf = min(h_pf + 1, 6)
         if not ops.now_ok(deadline):
             h_pf = min(h_pf, 2)
             ops_list.append("deadline_denoise_light")
@@ -236,8 +243,13 @@ def run_pipeline(
         working = ops.resize_exact(working, tw, th)
         ops_list.append("resize")
         strength = 0.22 if vision.preserve_realistic_colors else 0.35
-        if style == StylePreset.premium and image_type == ImageType.portfolio_interior:
+        if style == StylePreset.premium and image_type in (
+            ImageType.portfolio_interior,
+            ImageType.furniture_portfolio,
+        ):
             strength = min(strength * 1.05, 0.32)
+        if furniture_soft_enhance:
+            strength = min(strength * 1.08, 0.36)
         working = ops.normalize_exposure_rgb(working, _exposure_strength(strength, style))
         ops_list.append("exposure_normalize")
         if vision.avoid_heavy_saturation:
@@ -245,8 +257,13 @@ def run_pipeline(
 
             working = ImageEnhance.Color(working).enhance(0.98)
             ops_list.append("desaturate_slight")
-        working = ops.unsharp(working, radius=0.9, percent=115, threshold=3)
-        ops_list.append("sharpness")
+        if furniture_soft_enhance:
+            working = ops.unsharp(working, radius=0.85, percent=128, threshold=2)
+            ops_list.append("sharpness_enhanced")
+            ops_list.append("furniture_enhanced_software_v1")
+        else:
+            working = ops.unsharp(working, radius=0.9, percent=115, threshold=3)
+            ops_list.append("sharpness")
 
     effective_max_kb = max_output_kb if max_output_kb is not None else preset.max_kb
     max_bytes = effective_max_kb * 1024

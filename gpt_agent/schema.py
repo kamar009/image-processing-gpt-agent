@@ -43,6 +43,7 @@ class VisionAnalysis(BaseModel):
     perspective_strength: Literal["none", "light", "moderate"] = "light"
     notes_for_crop: str = ""
     content_tight_box: NormalizedBox | None = None
+    people_detected: bool = False
 
     @field_validator("perspective_strength", mode="before")
     @classmethod
