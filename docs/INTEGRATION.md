@@ -5,9 +5,18 @@
 `POST /process-image` — `multipart/form-data`:
 
 - `image` — файл
-- `type` — `product` | `category` | `banner` | `portfolio_interior`
+- `type` — `product` | `category` | `banner` | `portfolio_interior` | `furniture_portfolio` (детали и поля: [FURNITURE_PORTFOLIO_API.md](FURNITURE_PORTFOLIO_API.md))
 - `background` — опционально (`keep`, `white`, ...)
 - `format` — опционально (`webp`, `jpeg`, `png`)
+
+Для **`type=furniture_portfolio`** дополнительно (обязательны):
+
+- `furniture_scene` — enum, см. §3 в [FURNITURE_PORTFOLIO_API.md](FURNITURE_PORTFOLIO_API.md)
+- `output_target` — enum (`site`, `banner`, `social_vk`, `social_telegram`, `social_max`), размеры выхода — §4 того же файла
+
+Опционально: `enhanced` — усиленная **программная** обработка v1 (шум/резкость и т.п.; см. `operations`: `furniture_enhanced_software_v1`). Значения «вкл»: `1` / `true` / `on` (регистр не важен). Включается **только** флагом в запросе (форма/API). Автоудаление людей **не** выполняется.
+
+Минимальный размер **входа** для `furniture_portfolio`: длинная сторона **≥ 1200 px** после EXIF-ориентации (константа `FURNITURE_PORTFOLIO_MIN_INPUT_LONG_SIDE_PX` в коде); иначе **422** с текстом в `detail`.
 
 Успех: обычно **200** с телом JSON; при проблемах валидации выхода — **422** (см. `validation_ok`, `validation_errors`).
 
@@ -22,13 +31,15 @@
 | `validation_errors` | Причины 422 |
 | `processing_time_ms`, `vision_ms`, ... | Диагностика производительности |
 
+Дополнительно для **`furniture_portfolio`** (если тип выбран): `furniture_scene`, `output_target`, `enhanced_requested`, `enhanced_applied`, `people_detected` (оценка Vision), предупреждение о людях в кадре может дублироваться в `validation_warnings` (обработка при этом может завершиться успешно).
+
 ## Коды ошибок HTTP
 
 | Код | Типичная причина | Действие клиента |
 |-----|------------------|------------------|
 | **400** | Неверный `type` / enum, пустой файл, битое изображение | Исправить запрос; показать `detail` |
 | **413** | Файл больше `MAX_UPLOAD_MB` | Сжать или увеличить лимит в `.env` |
-| **422** | Не прошла валидация результата (`validation_ok=false`) | Показать `validation_errors`; при необходимости повторить с другими параметрами |
+| **422** | Не прошла валидация результата (`validation_ok=false`), неверные поля `furniture_portfolio`, слишком маленький вход | Показать `detail` и/или `validation_errors`; исправить параметры или исходник |
 | **502** | Ошибка этапа Vision/анализа (внешний сервис) | Повтор с backoff; проверить ключ и квоты OpenAI |
 | **500** | Внутренняя ошибка пайплайна (в т.ч. `rembg` без `onnxruntime`) | Логировать; проверить зависимости и логи сервера |
 
@@ -42,7 +53,9 @@
 python scripts/integration_smoke.py --image path/to/file.png --strict
 ```
 
-`--strict` завершает процесс с ненулевым кодом, если любой из четырех вызовов не вернул 200.
+`--strict` завершает процесс с ненулевым кодом, если любой из сценариев не вернул 200.
+
+По умолчанию четыре типа (`product`, `category`, `banner`, `portfolio_interior`) используют **один** переданный файл. Для проверки **`furniture_portfolio`** добавьте флаг **`--include-furniture`**: скрипт сгенерирует PNG с длинной стороной 1200 px (минимум по спеке) и вызовет API с `furniture_scene` / `output_target` и `vision_provider=fallback`.
 
 ## Базовая телеметрия
 
