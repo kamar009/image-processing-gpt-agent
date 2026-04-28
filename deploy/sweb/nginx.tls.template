@@ -1,5 +1,5 @@
-# Default for first boot: HTTP only (no TLS files yet). Certbot webroot + proxy to API.
-# See nginx.tls.template and deploy/sweb/issue-cert.sh for HTTPS after Let's Encrypt.
+# After Let's Encrypt: copy to nginx.conf and replace APP_DOMAIN (issue-cert.sh does this).
+# Port 80: ACME + redirect to HTTPS. Port 443: TLS + proxy to api:8000.
 
 events {
   worker_connections 1024;
@@ -23,11 +23,23 @@ http {
     }
 
     location / {
+      return 301 https://$host$request_uri;
+    }
+  }
+
+  server {
+    listen 443 ssl;
+    server_name _;
+
+    ssl_certificate /etc/letsencrypt/live/APP_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/APP_DOMAIN/privkey.pem;
+
+    location / {
       set $api_upstream http://api:8000;
       proxy_pass $api_upstream;
       proxy_set_header Host $host;
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Proto https;
       proxy_set_header X-Real-IP $remote_addr;
     }
   }
