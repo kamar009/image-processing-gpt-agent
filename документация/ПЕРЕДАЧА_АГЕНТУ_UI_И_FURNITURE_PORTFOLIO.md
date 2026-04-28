@@ -67,9 +67,9 @@
 | **D** | **D0** | Усиленная обработка v1: пайплайн по `enhanced` в запросе | готово (только software v1) | Тесты API, §2/§8 спеки |
 | **D** | **D1–D2** | Внешний retouch / удаление людей / провайдер | не начато | По продукту |
 | **E** | **E1–E2** | UI `/ui`: поля формы, `enhanced`, предупреждения | готово | Сценарий менеджера: [`static/index.html`](../static/index.html) |
-| **F** | **F1–F3** | Доки, smoke, выкат | частично: [INTEGRATION.md](../docs/INTEGRATION.md), [README.md](../README.md), `scripts/integration_smoke.py --include-furniture`; выкат на вашем контуре | Полный smoke прод + процесс релиза |
+| **F** | **F1–F3** | Доки, smoke, выкат | **готово** на контуре `api.kimoffice9-18.ru`: код в **main** (коммит с фичей `furniture_portfolio`), [INTEGRATION.md](../docs/INTEGRATION.md), [README.md](../README.md), `scripts/integration_smoke.py --include-furniture` → HTTP 200 для мебельного сценария с `vision_provider=fallback` | При релизах: pull + compose build/up + `sync_internal_presets` |
 
-**Рекомендация MVP в прод:** A2–A4 + B1–B2 + C1–C2 + UI; **`enhanced` v1** — по желанию, пользователь включает галочкой/API. На апрель 2026 готовы A–C, **D0 (software)** и **UI**; остаётся выкат и smoke на вашем контуре (**F**); тяжёлый retouch — отдельно (**D1+**).
+**Рекомендация MVP в прод:** A2–A4 + B1–B2 + C1–C2 + UI; **`enhanced` v1** — по желанию. На апрель 2026 закрыты **A–F** для software-пути; дальше по продукту — **D1+** (внешний retouch / люди) и при необходимости расширение Mini App.
 
 ---
 
@@ -88,8 +88,8 @@
 
 ### Чего ещё нет (и это нормально для этапа)
 
-- В **`/ui`** есть переключатель «усиленная обработка» для мебели; при включении запрос уходит с `enhanced`.
-- **Усиленная ретушь** (убрать людей, агрессивно почистить отражения через внешний сервис) — **не обещается** в текущей v1; при необходимости — отдельный этап согласования.
+- **Программная** «усиленная обработка» в **`/ui`** и API есть (`enhanced`); это **не** внешняя ретушь.
+- **Усиленная ретушь** (убрать людей, агрессивно почистить отражения через внешний сервис) — **не обещается** в текущей v1; при необходимости — отдельный этап согласования (**D1+**).
 
 ### Риски (честно)
 
@@ -111,24 +111,22 @@
 ## 4. Промпт для нового агента (скопировать целиком)
 
 ```
-Ты работаешь в репозитории «Image Processing Gpt Agent» (FastAPI, static /ui).
+Ты работаешь в репозитории «Image Processing Gpt Agent» (FastAPI, UI /ui → static/index.html).
 
-Контекст:
-- Прод и Sber Vision в эксплуатации; локально проверять SBER_VISION_AUTH_KEY / SBER_SCOPE в .env.
-- SSH на VPS: пользователь deploy, ключ ~/.ssh/sweb_deploy_github2 — см. .cursor/rules/sweb-ssh-deploy.mdc и docs/SWEB_RUNBOOK.md §2b.
-- Спека: docs/FURNITURE_PORTFOLIO_API.md; статус шагов A–C см. документация/ПЕРЕДАЧА_АГЕНТУ_UI_И_FURNITURE_PORTFOLIO.md §2. Файлы планов в .cursor/plans не редактировать без запроса.
+Состояние на апрель 2026:
+- Тип furniture_portfolio реализован end-to-end (API, пайплайн, Vision-промпт, ответ с furniture_scene / output_target / enhanced_* / people_detected, форма /ui).
+- Контракт и поля: docs/FURNITURE_PORTFOLIO_API.md. Общая интеграция клиента: docs/INTEGRATION.md.
+- Прод: при необходимости SSH пользователь deploy, ключ ~/.ssh/sweb_deploy_github2 — .cursor/rules/sweb-ssh-deploy.mdc, docs/SWEB_RUNBOOK.md §2b. Смок: scripts/integration_smoke.py … --include-furniture.
+- Sber (и др. провайдеры): секреты в .env; при 401 OAuth смотреть SBER_VISION_AUTH_KEY / SBER_SCOPE. Для диагностики без модели: vision_provider=fallback.
 
-Задача: продолжить внедрение с ОСТАНОВКОЙ после каждого шага (таблица §2):
-- D: enhanced / retouch — фичефлаг, провайдер, отказы по §8 (после согласования).
-- E: UI /ui — поля furniture_scene, output_target, enhanced (или скрыть enhanced до D), показ validation_warnings и people_detected.
-- F: документация для выката, smoke прод, при необходимости обновить INTEGRATION/README.
+Твоя задача в этом чате: [укажите одну цель — например D1+ retouch, Mini App для мебели, новый vision-провайдер, правки порогов валидации, документация пилота].
 
-Правила:
-- Не ломать существующие типы product, category, banner, portfolio_interior.
-- После шага: кратко «что сделано / как проверить / что в коммите».
-- Для руководителя по запросу: простым языком (зачем, риск, проверка, откат).
+Правила работы:
+- Не ломать product, category, banner, portfolio_interior и существующий контракт furniture_portfolio без явного согласования.
+- Маленькие коммиты, после шага — что сделано, как проверить (pytest / smoke), что не коммитить (.env, артефакты).
+- Файлы планов в .cursor/plans не трогать без запроса пользователя.
 
-Источник контракта furniture_portfolio — docs/FURNITURE_PORTFOLIO_API.md.
+Сводный контекст для людей и агентов: документация/КОНТЕКСТ_И_ПРОМПТ_НОВЫЙ_ЧАТ.md и этот файл §2–§3.
 ```
 
 ---
@@ -145,6 +143,6 @@
 
 ---
 
-*Обновляйте этот файл по мере прохождения шагов D–F и изменений на проде.*
+*Обновляйте этот файл по мере шагов D1+ и изменений на проде.*
 
-**Последнее обновление содержания:** апрель 2026 — зафиксированы готовность A–C по backend и расширен блок §3 для руководителя.
+**Последнее обновление содержания:** апрель 2026 — закрыт блок **F** (выкат + smoke), обновлены §4 (промпт агенту) и строка таблицы **F** в §2.
