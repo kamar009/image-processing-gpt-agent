@@ -2,6 +2,10 @@
 
 **Этап 2 — только публичный API** (загрузка → обработка → скачивание, без обязательного Telegram/internal): пошаговая инструкция с контрольными точками для руководителя и исполнителя — [STAGE2_SPACEWEB_PUBLIC.md](STAGE2_SPACEWEB_PUBLIC.md). Режим **`INTERNAL_MODE`** на сервере задаётся в **`/opt/app/.env`** (в Docker Compose не переопределяется).
 
+Blue/Green (параллельный `v1` + `v2` с мгновенным rollback): [SWEB_BLUE_GREEN_DEPLOY.md](SWEB_BLUE_GREEN_DEPLOY.md).
+
+**Важно для переключения трафика:** каталог `deploy/sweb/upstreams` смонтирован в nginx как **read-only**; активный upstream задаётся файлом **`deploy/sweb/upstreams/active-upstream.conf` на хосте**. Скрипт **`deploy/sweb/switch-upstream.sh`** обновляет этот файл и делает `nginx -t` + reload. Для **v2** upstream — **`http://host.docker.internal:8001`** (отдельный compose v2 слушает `127.0.0.1:8001`). Любая проблема с **443** или **/health** после cutover — сразу **`switch-upstream.sh v1`** (детали и чеклист — в Blue/Green документе).
+
 ## 1) VPS baseline
 
 - Recommended: 2 vCPU, 4 GB RAM, 40+ GB NVMe, Ubuntu 22.04/24.04.
@@ -163,6 +167,8 @@ bash deploy/sweb/issue-cert.sh api.your-domain devops@your-domain
 Ручной деплой: кнопка **Actions → Deploy SWEB → Run workflow**.
 
 Чек-лист перед/после релиза: раздел **«Этап 7 — чек-лист релиза»** в [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md).
+
+**Релизное окно Blue/Green (v1↔v2):** краткий чеклист — §8 в [SWEB_BLUE_GREEN_DEPLOY.md](SWEB_BLUE_GREEN_DEPLOY.md).
 
 ## 6) Operations
 
