@@ -1,6 +1,6 @@
 # SWEB VPS runbook (internal MVP)
 
-**Этап 2 — только публичный API** (загрузка → обработка → скачивание, без обязательного Telegram/internal): пошаговая инструкция с контрольными точками для руководителя и исполнителя — [STAGE2_SPACEWEB_PUBLIC.md](STAGE2_SPACEWEB_PUBLIC.md). Режим **`INTERNAL_MODE`** на сервере задаётся в **`/opt/app/.env`** (в Docker Compose не переопределяется).
+**Этап 2 — только публичный API** (загрузка → обработка → скачивание, без обязательного Telegram/internal): пошаговая инструкция с контрольными точками для руководителя и исполнителя — [STAGE2_SPACEWEB_PUBLIC.md](STAGE2_SPACEWEB_PUBLIC.md). Режим **`INTERNAL_MODE`** на сервере задаётся в **`/opt/app/.env`** (в Docker Compose не переопределяется). Согласование **0 vs 1** для бизнеса и команды: [INTERNAL_MODE_CHOICE.md](INTERNAL_MODE_CHOICE.md).
 
 Blue/Green (параллельный `v1` + `v2` с мгновенным rollback): [SWEB_BLUE_GREEN_DEPLOY.md](SWEB_BLUE_GREEN_DEPLOY.md).
 
@@ -70,7 +70,7 @@ Create `.env` from `.env.example` and fill:
 
 - `SBER_VISION_AUTH_KEY` (preferred) or `SBER_VISION_API_KEY`
 - `PUBLIC_BASE_URL=https://api.your-domain`
-- `INTERNAL_MODE=1`
+- `INTERNAL_MODE=1` (только для Mini App / очереди; для «только публичный API» — `0`, см. [INTERNAL_MODE_CHOICE.md](INTERNAL_MODE_CHOICE.md))
 - `INTERNAL_ADMIN_IDS=11111111,22222222`
 - `TELEGRAM_BOT_TOKEN=...`
 - `INTERNAL_DB_PATH=/data/internal/internal.db`
@@ -128,6 +128,13 @@ docker compose -f deploy/sweb/docker-compose.yml exec -T api python scripts/sync
 ```
 
 6. Автодеплой из репозитория: **Actions → Deploy SWEB → Run workflow** (или push в `main`).
+
+7. **Blue/Green:** после `git pull` файл `deploy/sweb/upstreams/active-upstream.conf` может совпасть с версией из git (дефолт **v1**). Если до обновления трафик шёл на **v2**, снова выполните `bash deploy/sweb/switch-upstream.sh v2` после preflight (см. [SWEB_BLUE_GREEN_DEPLOY.md](SWEB_BLUE_GREEN_DEPLOY.md) §3, §6). Быстрая проверка:
+
+```bash
+cd /opt/app
+bash deploy/sweb/check-active-upstream.sh
+```
 
 **Примечание:** до `issue-cert.sh` в репозитории используется **HTTP-only** `nginx.conf` (порт 80, прокси на API + webroot для Certbot). После выпуска сертификата скрипт подставляет конфиг из `nginx.tls.template`. Если nginx всё ещё в `Restarting`, проверьте логи: `docker compose -f deploy/sweb/docker-compose.yml logs nginx --tail 50`.
 

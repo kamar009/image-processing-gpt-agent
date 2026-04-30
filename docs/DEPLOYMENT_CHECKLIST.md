@@ -26,6 +26,7 @@
 ## После релиза
 
 - Проверить `GET /health` и `GET /metrics`.
+- **SpaceWeb + Blue/Green:** после `git pull` на VPS выполнить `bash deploy/sweb/check-active-upstream.sh` в `/opt/app`. Если прод должен оставаться на **v2**, убедиться, что в выводе указан v2; иначе снова `switch-upstream.sh v2` по [SWEB_BLUE_GREEN_DEPLOY.md](SWEB_BLUE_GREEN_DEPLOY.md).
 - Сделать минимум 1 реальный `POST /process-image` по каждому `type`.
 - Проверить, что в ответах присутствует `request_id` и заголовок `x-request-id`.
 - Проверить, что scheduler cleanup активен (Windows Task Scheduler/cron).
@@ -34,6 +35,7 @@
 
 - Если растут 5xx или есть деградация качества: откатить на предыдущую версию сервиса.
 - После отката прогнать smoke повторно и сверить `/metrics` на снижение ошибок.
+- Для Blue/Green откат — переключение upstream на `v1` (см. [SWEB_BLUE_GREEN_DEPLOY.md](SWEB_BLUE_GREEN_DEPLOY.md)).
 
 ## Internal MVP on sweb
 

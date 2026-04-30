@@ -99,6 +99,12 @@ bash deploy/sweb/switch-upstream.sh v1
 
 Файл `deploy/sweb/upstreams/active-upstream.conf` **в репозитории** задаёт дефолт **v1**. После `git pull` при конфликте или сбросе файла проверьте активный upstream и при необходимости снова выполните `switch-upstream.sh v1|v2`.
 
+Проверка одной командой на сервере:
+
+```bash
+cd /opt/app && bash deploy/sweb/check-active-upstream.sh
+```
+
 ## 7) CI/CD
 
 - Деплой **v1**: [`.github/workflows/deploy-sweb.yml`](../.github/workflows/deploy-sweb.yml)

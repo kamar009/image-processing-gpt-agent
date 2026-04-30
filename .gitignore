@@ -12,3 +12,7 @@ build/
 .DS_Store
 .idea/
 .vscode/
+
+# Vision pilot image blobs (keep README; policy: docs/VISION_PILOT_REPO_POLICY.md)
+test_datasets/vision_pilot/*
+!test_datasets/vision_pilot/README.md

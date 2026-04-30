@@ -83,6 +83,28 @@
       text-decoration: none;
     }
     a.btn:hover { text-decoration: underline; }
+    .proc-status {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin: 0.65rem 0 0;
+      padding: 0.5rem 0.65rem;
+      background: #f4f4f5;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .btn-link {
+      display: inline-block;
+      margin-top: 0.65rem;
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      font-size: 0.875rem;
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .btn-link:hover { color: #1d4ed8; }
     .field-hint {
       font-size: 0.78rem;
       color: var(--muted);
@@ -167,6 +189,9 @@
         <option value="retail_counters">Торговое оборудование (прилавки, буфеты)</option>
         <option value="archive_library">Архивы и библиотеки</option>
         <option value="lounge">Комната отдыха</option>
+        <option value="educational_institution">Учебные заведения</option>
+        <option value="team_office_2_6">Кабинет на 2–6 рабочих мест</option>
+        <option value="hotel_guest_room">Гостиничный номер</option>
       </select>
       <label for="output_target">Куда публикуем</label>
       <select id="output_target" name="output_target">
@@ -243,6 +268,8 @@
     </details>
 
     <button type="submit" id="submit">Обработать изображение</button>
+    <p id="procStatus" class="proc-status" hidden role="status" aria-live="polite"></p>
+    <button type="button" id="retryBtn" class="btn-link" hidden>Новая обработка</button>
     <div id="err" class="error" hidden></div>
   </form>
 
@@ -276,6 +303,8 @@
   const metaEl = document.getElementById("meta");
   const downloadEl = document.getElementById("download");
   const validationMsg = document.getElementById("validationMsg");
+  const procStatusEl = document.getElementById("procStatus");
+  const retryBtn = document.getElementById("retryBtn");
   let inObjectUrl = null;
   const typeLabels = {
     product: "Товар",
@@ -385,13 +414,50 @@
     return "Техническая информация: " + parts.join(" | ");
   }
 
-  function showTechnicalError(message) {
-    setErr("");
+  function userFacingHttpMessage(status, detailStr) {
+    const d = (detailStr || "").trim();
+    if (status === 413)
+      return "Файл слишком большой для сервера. Попробуйте уменьшить изображение или сильнее сжать его.";
+    if (status === 429)
+      return "Слишком много запросов подряд. Подождите минуту и попробуйте снова.";
+    if (status === 502 || status === 503)
+      return "Сервер временно недоступен или обновляется. Попробуйте через минуту.";
+    if (status === 504)
+      return "Обработка заняла слишком много времени. Попробуйте файл меньшего размера или другое фото.";
+    if (status === 422)
+      return d
+        ? "Запрос не принят: " + d
+        : "Проверьте тип снимка и обязательные поля (для «Мебель» нужны помещение и формат публикации).";
+    if (status === 401 || status === 403)
+      return "Недостаточно прав для этой операции.";
+    if (status === "fetch_error" || status === 0)
+      return "Не удалось связаться с сервером. Проверьте интернет и попробуйте снова.";
+    if (d.length && d.length < 200) return d;
+    return "Не удалось обработать изображение. Если ошибка повторяется, обратитесь в поддержку и приложите текст ниже.";
+  }
+
+  function formatDurationMs(ms) {
+    if (ms == null || ms === "" || isNaN(Number(ms))) return "—";
+    const n = Number(ms);
+    if (n < 1000) return String(Math.round(n)) + " мс";
+    return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + " с (" + String(Math.round(n)) + " мс)";
+  }
+
+  function setProcStatus(text) {
+    if (!procStatusEl) return;
+    procStatusEl.textContent = text || "";
+    procStatusEl.hidden = !text;
+  }
+
+  function showTechnicalError(message, userLine) {
+    const friendly = userLine || userFacingHttpMessage("", "");
+    setErr(friendly);
     validationMsg.hidden = true;
     downloadEl.hidden = true;
     outPreview.removeAttribute("src");
     metaEl.innerHTML = '<div class="meta-tech">' + esc(message) + "</div>";
     outCard.hidden = false;
+    if (retryBtn) retryBtn.hidden = false;
   }
 
   function setErr(msg) {
@@ -421,6 +487,21 @@
   syncTypeHint();
   syncFurnitureBlock();
 
+  if (retryBtn) {
+    retryBtn.addEventListener("click", function () {
+      setErr("");
+      setProcStatus("");
+      validationMsg.hidden = true;
+      outCard.hidden = true;
+      downloadEl.hidden = true;
+      outPreview.removeAttribute("src");
+      metaEl.innerHTML = "";
+      retryBtn.hidden = true;
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      imageInput.focus();
+    });
+  }
+
   imageInput.addEventListener("change", function () {
     if (inObjectUrl) URL.revokeObjectURL(inObjectUrl);
     inObjectUrl = null;
@@ -435,6 +516,8 @@
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
     setErr("");
+    setProcStatus("Идёт обработка… Пожалуйста, не закрывайте страницу.");
+    if (retryBtn) retryBtn.hidden = true;
     validationMsg.hidden = true;
     outCard.hidden = true;
     const file = imageInput.files && imageInput.files[0];
@@ -491,16 +574,25 @@
       try {
         data = await res.json();
       } catch (_) {
-        showTechnicalError(technicalError(res.status, "Некорректный ответ сервера", requestId));
+        showTechnicalError(
+          technicalError(res.status, "Некорректный ответ сервера", requestId),
+          userFacingHttpMessage(res.status, "")
+        );
         return;
       }
       const detail = data && data.detail;
       if (detail && res.status >= 400 && !data.file_id) {
-        showTechnicalError(technicalError(res.status, String(detail), data.request_id || requestId));
+        showTechnicalError(
+          technicalError(res.status, String(detail), data.request_id || requestId),
+          userFacingHttpMessage(res.status, String(detail))
+        );
         return;
       }
       if (!data.file_id) {
-        showTechnicalError(technicalError(res.status, "Неожиданный ответ сервера", requestId));
+        showTechnicalError(
+          technicalError(res.status, "Неожиданный ответ сервера", requestId),
+          userFacingHttpMessage(res.status, data && data.detail ? String(data.detail) : "")
+        );
         return;
       }
       const rel = "/outputs/" + data.file_id;
@@ -550,6 +642,7 @@
       }
       metaEl.innerHTML =
         '<div class="meta-main">' +
+          "<div><strong>Время обработки:</strong> " + esc(formatDurationMs(data.processing_time_ms)) + "</div>" +
           "<div><strong>Модель:</strong> " + esc(compactValue(modelName)) + " (" + esc(compactValue(providerName)) + ")</div>" +
           "<div><strong>Параметры:</strong> тип: " + esc(typeLabels[typeValue] || typeValue) +
           ", фон: " + esc(backgroundLabels[effBackground] || effBackground || "—") +
@@ -582,9 +675,14 @@
         validationMsg.hidden = true;
       }
       outCard.hidden = false;
+      if (retryBtn) retryBtn.hidden = true;
     } catch (ex) {
-      showTechnicalError(technicalError("fetch_error", ex && ex.message ? ex.message : String(ex), ""));
+      showTechnicalError(
+        technicalError("fetch_error", ex && ex.message ? ex.message : String(ex), ""),
+        userFacingHttpMessage("fetch_error", "")
+      );
     } finally {
+      setProcStatus("");
       submitBtn.disabled = false;
     }
   });
