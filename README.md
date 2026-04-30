@@ -54,7 +54,7 @@ docker compose up --build
 
 Проверка: `GET http://127.0.0.1:8080/health`.
 
-Чеклист и заметки по продакшену: [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md).
+Чеклист и заметки по продакшену: [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md). Локальный стек **v2** (отдельные тома, порт 8001): [docs/LOCAL_V2_DEV.md](docs/LOCAL_V2_DEV.md). Политика деплоя v2 на VPS: [docs/SWEB_V2_DEPLOY_POLICY.md](docs/SWEB_V2_DEPLOY_POLICY.md).
 
 ## Internal MVP mode (Telegram + whitelist)
 

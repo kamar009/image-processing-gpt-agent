@@ -110,8 +110,21 @@ cd /opt/app && bash deploy/sweb/check-active-upstream.sh
 - Деплой **v1**: [`.github/workflows/deploy-sweb.yml`](../.github/workflows/deploy-sweb.yml)
 - Деплой **v2**: [`.github/workflows/deploy-sweb-v2.yml`](../.github/workflows/deploy-sweb-v2.yml)
 - Ручное переключение трафика: [`.github/workflows/switch-sweb-traffic.yml`](../.github/workflows/switch-sweb-traffic.yml)
+- Политика «фичи в v2, v1 только hotfix»: [SWEB_V2_DEPLOY_POLICY.md](SWEB_V2_DEPLOY_POLICY.md)
 
-## 8) Операционный чеклист релизного окна (кратко)
+## 8) Cutover gate — критерий готовности к переключению на v2
+
+Переключать публичный трафик (`switch-upstream.sh v2`) **только** если выполнены все пункты:
+
+- [ ] **CI** зелёный на коммите, который задеплоен в `/opt/app-v2`.
+- [ ] На VPS: `bash deploy/sweb/smoke-v2.sh` с хоста (или эквивалентные `curl` на `127.0.0.1:8001/health` и при необходимости `/internal/health`).
+- [ ] **Preflight §3** пройден (v2 и v1 отвечают, `nginx -t` при необходимости).
+- [ ] Согласовано **релизное окно**; дежурный может выполнить **rollback §5** без задержки.
+- [ ] Проверены критичные сценарии бизнеса (в т.ч. нужные `type` в `POST /process-image`).
+
+Если любой пункт не выполнен — cutover **не** делать; продолжать итерации на v2 на `:8001` и в [локальном стеке](LOCAL_V2_DEV.md).
+
+## 9) Операционный чеклист релизного окна (кратко)
 
 **До окна**
 
